@@ -1,0 +1,5 @@
+main: org.metacity.core.Core
+name: Core
+author: MetaCity
+desc: MetaCity Core
+version: 1.0
