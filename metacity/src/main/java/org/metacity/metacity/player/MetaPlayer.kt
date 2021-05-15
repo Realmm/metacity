@@ -2,6 +2,7 @@ package org.metacity.metacity.player
 
 import org.bukkit.OfflinePlayer
 import org.bukkit.entity.Player
+import org.metacity.metacity.MetaCity
 import java.util.*
 
 /**
