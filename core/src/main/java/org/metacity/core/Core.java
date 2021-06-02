@@ -18,6 +18,12 @@ public class Core extends CorePlugin {
         registerCommands();
     }
 
+    @Override
+    public void onDisable() {
+        super.onDisable();
+        Command.unregisterAll();
+    }
+
     private void registerCommands() {
         Stream.of(
                 Command.builder(ConsoleCommandSender.class, "a")

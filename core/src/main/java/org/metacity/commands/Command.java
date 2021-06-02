@@ -27,6 +27,8 @@ public class Command<T extends CommandSender> {
     private final Class<T> allowedSender;
     private final BukkitCommand bukkitCommand;
 
+    private final static List<BukkitCommand> bukkitCommands = new ArrayList<>();
+
     private Command(Class<T> sender, String command) {
         this.command = command;
         this.allowedSender = sender;
@@ -96,21 +98,16 @@ public class Command<T extends CommandSender> {
         if (commands.stream().anyMatch(c -> c.getName().equalsIgnoreCase(command.bukkitCommand.getName())))
             throw new IllegalStateException("Command " + command.bukkitCommand.getName() + " already registered");
         map.register(command.command, command.bukkitCommand);
+        bukkitCommands.add(command.bukkitCommand);
     }
 
-//    private static class CommandExecutionWrapper<T extends CommandSender> implements CommandExecutor {
-//
-//        private final Command<T> command;
-//
-//        private CommandExecutionWrapper(Command<T> command) {
-//            this.command = command;
-//        }
-//
-//        public boolean onCommand(CommandSender sender, org.bukkit.command.Command cmd, String s, String[] args) {
-//
-//            return true;
-//        }
-//    }
+    public static void unregisterAll() {
+        SimpleCommandMap map = ((CraftServer) Core.getInstance().getServer()).getCommandMap();
+        Collection<org.bukkit.command.Command> mapCommands = new ArrayList<>(map.getCommands());
+        map.clearCommands();
+        mapCommands.removeIf(c -> bukkitCommands.stream().anyMatch(bc -> c.getName().equalsIgnoreCase(bc.getName())));
+        mapCommands.forEach(c -> map.register(c.getName(), c));
+    }
 
     public static class CommandWrapper<T extends CommandSender> {
 
