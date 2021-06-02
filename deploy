@@ -1,0 +1,9 @@
+#!/usr/bin/bash
+
+cd core 
+mvn clean install
+scp ./target/Core.jar james@192.168.0.26:/home/james/Documents/MetaCityServers/city/plugins
+cd ../metacity 
+mvn clean package
+scp ./target/MetaCity.jar james@192.168.0.26:/home/james/Documents/MetaCityServers/city/plugins
+

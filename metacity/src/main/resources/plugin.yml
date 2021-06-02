@@ -3,3 +3,4 @@ name: MetaCity
 author: MetaCity
 desc: MetaCity Main
 version: 1.0
+depend: [Core]
