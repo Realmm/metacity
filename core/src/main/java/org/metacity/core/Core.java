@@ -30,7 +30,7 @@ public class Core extends CorePlugin {
                         .withExecution((s, w) ->
                                 Bukkit.dispatchCommand(s, "plugman reload all")
                         ).build()
-        ).forEach(Command::register);
+        ).forEach(c -> Command.register(c));
     }
 
     public static Core getInstance() {

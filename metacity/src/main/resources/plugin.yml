@@ -1,6 +1,40 @@
 main: org.metacity.metacity.MetaCity
 name: MetaCity
-author: MetaCity
-desc: MetaCity Main
+author: Realmm
+desc: MetaCity
 version: 1.0
+softdepend: [Vault, PlaceholderAPI]
 depend: [Core]
+api-version: 1.16
+
+commands:
+  enj:
+    description: Reference command for EnjinCraft.
+permissions:
+  enjincraft.*:
+    default: op
+    children:
+      enjincraft.player: true
+      enjincraft.conf: true
+  enjincraft.conf:
+    default: false
+    children:
+      enjincraft.conf.set: true
+      enjincraft.conf.token: true
+      enjincraft.conf.reload: true
+  enjincraft.player:
+    default: true
+    children:
+      enjincraft.root: true
+      enjincraft.balance: true
+      enjincraft.help: true
+      enjincraft.link: true
+      enjincraft.send: true
+      enjincraft.trade: true
+      enjincraft.unlink: true
+      enjincraft.wallet: true
+  enjincraft.trade:
+    children:
+      enjincraft.trade.invite: true
+      enjincraft.trade.accept: true
+      enjincraft.trade.decline: true

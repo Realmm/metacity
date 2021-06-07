@@ -1,0 +1,23 @@
+#If developing, set to true to use Kovan chain instead of main chain
+dev-mode: true
+
+#Main developer wallet address
+eth-wallet-address: ""
+
+#ID for application created on enjin.cloud main net
+main-app-id: -1
+#Secret for application created on enjin.cloud main net
+main-app-secret: ""
+
+#ID for application created on kovan.enjin.cloud kovan net
+dev-app-id: -1
+#Secret for application created on kovan.enjin.cloud kovan net
+dev-app-secret: ""
+
+permission-blacklist:
+  - "minecraft.command.op"
+  - "minecraft.command.deop"
+  - "minecraft.command.stop"
+link-permissions:
+   - "example.perm1"
+

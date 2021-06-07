@@ -90,6 +90,10 @@ public class Command<T extends CommandSender> {
         return true;
     }
 
+    public void register() {
+        register(this);
+    }
+
     public static <T extends CommandSender> void register(Command<T> command) {
         if (command.command.equalsIgnoreCase("") || command.bukkitCommand == null)
             throw new IllegalArgumentException("Parsed illegal sub command, should be base");

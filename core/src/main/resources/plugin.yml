@@ -3,3 +3,4 @@ name: Core
 author: MetaCity
 desc: MetaCity Core
 version: 1.0
+depend: [PlugMan]

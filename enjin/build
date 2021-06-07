@@ -1,0 +1,15 @@
+#!/usr/bin/bash
+
+cd ./enjin-java-sdk
+./gradlew build
+cd ../
+
+mvn install:install-file -Dfile=./enjin-java-sdk/sdk/build/libs/sdk-1.0.4-all.jar \
+-DgroupId=com.enjin \
+-DartifactId=sdk \
+-Dversion=1.0.4 \
+-Dpackaging=jar \
+-DgeneratePom=true
+
+#cd ./enjincraft-1.1.0
+#./gradlew build
