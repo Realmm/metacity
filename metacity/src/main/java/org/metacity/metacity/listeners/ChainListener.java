@@ -5,27 +5,28 @@ import com.enjin.sdk.models.notification.NotificationEvent;
 import com.enjin.sdk.models.request.TransactionType;
 import com.google.gson.JsonObject;
 import org.bukkit.Bukkit;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.Translation;
 import org.metacity.metacity.wallet.MutableBalance;
+import org.metacity.util.Logger;
 
 import java.util.Optional;
 
-public class EnjEventListener implements com.enjin.sdk.services.notification.NotificationListener {
+public class ChainListener implements com.enjin.sdk.services.notification.NotificationListener {
 
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin;
 
-    public EnjEventListener(SpigotBootstrap bootstrap) {
-        this.bootstrap = bootstrap;
+    public ChainListener() {
+        this.plugin = MetaCity.getInstance();
     }
 
     @Override
     public void notificationReceived(NotificationEvent event) {
         try {
-            bootstrap.debug(String.format("Received event: %s", event));
+            Logger.debug(String.format("Received event: %s", event));
 
             EventType eventType = event.getType();
             if (eventType == null)
@@ -54,8 +55,8 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
                 default:
                     break;
             }
-        } catch (Exception ex) {
-            bootstrap.log(ex);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -80,16 +81,16 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
             transactionId = transaction.get("id").getAsInt();
             tradeId = trade.get("id").getAsString();
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return;
         }
 
         switch (type) {
             case CREATE_TRADE:
-                bootstrap.getTradeManager().sendCompleteRequest(transactionId, tradeId);
+                plugin.getTradeManager().sendCompleteRequest(transactionId, tradeId);
                 break;
             case SEND:
-                bootstrap.getTradeManager().completeTrade(transactionId);
+                plugin.getTradeManager().completeTrade(transactionId);
                 break;
             default:
                 break;
@@ -111,14 +112,14 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
                     .getAsJsonObject();
             transactionId = transaction.get("id").getAsInt();
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return;
         }
 
         switch (type) {
             case CREATE_TRADE:
             case COMPLETE_TRADE:
-                bootstrap.getTradeManager().cancelTrade(transactionId);
+                plugin.getTradeManager().cancelTrade(transactionId);
                 break;
             default:
                 break;
@@ -135,7 +136,7 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
 
         int id = identity.get("id").getAsInt();
 
-        MetaPlayer metaPlayer = bootstrap.getPlayerManager()
+        MetaPlayer metaPlayer = plugin.getPlayerManager()
                 .getPlayer(id)
                 .orElse(null);
         if (metaPlayer == null)
@@ -144,7 +145,7 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
         JsonObject wallet = event.getEventData().getAsJsonObject("wallet");
 
         Translation.COMMAND_LINK_SUCCESS.send(metaPlayer.getBukkitPlayer(), wallet.get("ethAddress").getAsString());
-        Bukkit.getScheduler().runTaskAsynchronously(bootstrap.plugin(), metaPlayer::reloadIdentity);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, metaPlayer::reloadIdentity);
     }
 
     private void onIdentityUnlinked(NotificationEvent event) {
@@ -157,8 +158,8 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
 
         int id = identity.get("id").getAsInt();
 
-        Optional<MetaPlayer> playerOptional = bootstrap.getPlayerManager().getPlayer(id);
-        playerOptional.ifPresent(player -> Bukkit.getScheduler().runTaskAsynchronously(bootstrap.plugin(),
+        Optional<MetaPlayer> playerOptional = plugin.getPlayerManager().getPlayer(id);
+        playerOptional.ifPresent(player -> Bukkit.getScheduler().runTaskAsynchronously(plugin,
                                                                                        player::unlinked));
     }
 
@@ -197,7 +198,7 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
                     .get("nonFungible")
                     .getAsBoolean();
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return;
         }
 
@@ -216,7 +217,7 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
                         ? transfer.get("index").getAsString()
                         : null;
             } catch (Exception e) {
-                bootstrap.log(e);
+                e.printStackTrace();
                 return;
             }
 
@@ -235,7 +236,7 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
                         ? melt.get("index").getAsString()
                         : null;
             } catch (Exception e) {
-                bootstrap.log(e);
+                e.printStackTrace();
                 return;
             }
 
@@ -265,7 +266,7 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
                     index = null;
                 }
             } catch (Exception e) {
-                bootstrap.log(e);
+                e.printStackTrace();
                 return;
             }
 
@@ -274,14 +275,14 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
     }
 
     private void updateBalance(String ethAddr, String tokenId, String tokenIndex, int balanceDelta) {
-        MetaPlayer metaPlayer = bootstrap.getPlayerManager()
+        MetaPlayer metaPlayer = plugin.getPlayerManager()
                 .getPlayer(ethAddr)
                 .orElse(null);
         if (metaPlayer == null || metaPlayer.getTokenWallet() == null)
             return;
 
         String         fullId     = TokenUtils.createFullId(tokenId, tokenIndex);
-        TokenModel tokenModel = bootstrap.getTokenManager().getToken(fullId);
+        TokenModel tokenModel = plugin.getTokenManager().getToken(fullId);
         MutableBalance mBalance   = metaPlayer.getTokenWallet().getBalance(fullId);
 
         if ((mBalance == null || mBalance.balance() == 0) && balanceDelta > 0) {
@@ -307,7 +308,7 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
                     .getAsJsonObject();
             typeString = transaction.get("type").getAsString();
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return null;
         }
 
@@ -316,7 +317,7 @@ public class EnjEventListener implements com.enjin.sdk.services.notification.Not
                 return transactionType;
         }
 
-        bootstrap.debug(String.format("No such transaction type: %s", typeString));
+        Logger.debug(String.format("No such transaction type: %s", typeString));
 
         return null;
     }

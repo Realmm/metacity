@@ -3,6 +3,7 @@ package org.metacity.metacity.player;
 import org.bukkit.permissions.Permissible;
 import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.plugin.Plugin;
+import org.metacity.metacity.MetaCity;
 
 import java.util.Collection;
 
@@ -12,9 +13,9 @@ public class MetaPermissionAttachment {
     private final Plugin plugin;
     private PermissionAttachment attachment;
 
-    public MetaPermissionAttachment(Permissible permissible, Plugin plugin) {
+    public MetaPermissionAttachment(Permissible permissible) {
         this.permissible = permissible;
-        this.plugin = plugin;
+        this.plugin = MetaCity.getInstance();
         clear();
     }
 

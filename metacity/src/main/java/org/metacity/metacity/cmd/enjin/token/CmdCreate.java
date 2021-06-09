@@ -14,7 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.conversations.Conversations;
 import org.metacity.metacity.conversations.prompts.TokenIdPrompt;
@@ -30,9 +30,9 @@ import org.metacity.metacity.util.server.Translation;
 import java.math.BigInteger;
 import java.util.Map;
 
-public class CmdCreate extends EnjCommand {
+public class CmdCreate extends MetaCommand {
 
-    public CmdCreate(EnjCommand parent) {
+    public CmdCreate(MetaCommand parent) {
         super(parent);
         this.aliases.add("create");
         this.requiredArgs.add("token-id");

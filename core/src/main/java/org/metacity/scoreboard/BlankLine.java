@@ -2,8 +2,8 @@ package org.metacity.scoreboard;
 
 public class BlankLine extends Line {
 
-    public BlankLine() {
-        super("");
+    public BlankLine(Slot slot) {
+        super("", slot);
     }
 
     void setBlankContent(String s) {

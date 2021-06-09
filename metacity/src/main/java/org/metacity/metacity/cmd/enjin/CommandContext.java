@@ -20,7 +20,7 @@ public class CommandContext {
     protected MetaPlayer metaPlayer;
     protected List<String> args;
     protected String alias;
-    protected Deque<EnjCommand> commandStack;
+    protected Deque<MetaCommand> commandStack;
     protected List<String> tabCompletionResult;
 
     public CommandContext(Bootstrap bootstrap, CommandSender sender, List<String> args, String alias) {
@@ -54,11 +54,11 @@ public class CommandContext {
                 : Optional.empty();
     }
 
-    public static List<EnjCommand> createCommandStackAsList(EnjCommand top) {
-        List<EnjCommand> list = new ArrayList<>();
+    public static List<MetaCommand> createCommandStackAsList(MetaCommand top) {
+        List<MetaCommand> list = new ArrayList<>();
 
         list.add(top);
-        Optional<EnjCommand> parent = top.parent;
+        Optional<MetaCommand> parent = top.parent;
         while (parent.isPresent()) {
             list.add(0, parent.get());
             parent = parent.get().parent;

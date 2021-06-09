@@ -3,7 +3,7 @@ package org.metacity.metacity.cmd.enjin.token;
 
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.cmd.enjin.arg.WalletViewStateArgumentProcessor;
 import org.metacity.metacity.enums.Permission;
@@ -14,9 +14,9 @@ import org.metacity.metacity.wallet.TokenWalletViewState;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CmdSetWalletView extends EnjCommand {
+public class CmdSetWalletView extends MetaCommand {
 
-    public CmdSetWalletView(EnjCommand parent) {
+    public CmdSetWalletView(MetaCommand parent) {
         super(parent);
         this.aliases.add("setwalview");
         this.aliases.add("setwalletview");

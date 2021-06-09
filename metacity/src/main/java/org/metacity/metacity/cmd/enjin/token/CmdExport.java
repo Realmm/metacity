@@ -3,16 +3,16 @@ package org.metacity.metacity.cmd.enjin.token;
 import org.bukkit.command.CommandSender;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.token.TokenManager;
 import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.Translation;
 
-public class CmdExport extends EnjCommand {
+public class CmdExport extends MetaCommand {
 
-    public CmdExport(EnjCommand parent) {
+    public CmdExport(MetaCommand parent) {
         super(parent);
         this.aliases.add("export");
         this.optionalArgs.add("id");

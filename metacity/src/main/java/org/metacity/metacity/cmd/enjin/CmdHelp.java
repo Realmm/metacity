@@ -4,9 +4,9 @@ import org.bukkit.command.CommandSender;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.util.server.Translation;
 
-public class CmdHelp extends EnjCommand {
+public class CmdHelp extends MetaCommand {
 
-    public CmdHelp(EnjCommand parent) {
+    public CmdHelp(MetaCommand parent) {
         super(parent);
         this.aliases.add("help");
         this.aliases.add("h");
@@ -21,7 +21,7 @@ public class CmdHelp extends EnjCommand {
         parent.ifPresent(parent -> showHelp(context.sender, parent));
     }
 
-    private void showHelp(CommandSender sender, EnjCommand command) {
+    private void showHelp(CommandSender sender, MetaCommand command) {
         command.showHelp(sender);
         command.subCommands.forEach(c -> showHelp(sender, c));
     }

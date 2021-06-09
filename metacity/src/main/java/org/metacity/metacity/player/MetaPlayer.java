@@ -14,13 +14,15 @@ import de.tr7zw.changeme.nbtapi.NBTItem;
 import lombok.NonNull;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.inventory.*;
+import org.metacity.metacity.Chain;
 import org.metacity.metacity.MetaCity;
-import org.metacity.metacity.SpigotBootstrap;
 import org.metacity.metacity.exceptions.GraphQLException;
 import org.metacity.metacity.exceptions.NetworkException;
+import org.metacity.metacity.player.scoreboard.MetaTemplate;
 import org.metacity.metacity.token.TokenManager;
 import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.trade.TradeView;
@@ -35,6 +37,7 @@ import org.metacity.metacity.wallet.TokenWalletView;
 import org.metacity.metacity.wallet.TokenWalletViewState;
 import org.metacity.scoreboard.UberBoard;
 import org.metacity.util.CC;
+import org.metacity.util.Logger;
 
 import java.awt.*;
 import java.math.BigDecimal;
@@ -43,27 +46,29 @@ import java.util.*;
 
 public class MetaPlayer {
 
-    private UberBoard uberBoard;
+    private final UberBoard uberBoard;
 
     // Bukkit Fields
-    private final SpigotBootstrap bootstrap;
-    private Player bukkitPlayer;
+    private final UUID uuid;
+    private final QuestionablePlayer questionablePlayer;
 
     // User Data
+    private User user;
     private Integer userId;
 
     // Identity Data
+    private Identity identity;
     private Integer identityId;
     private Wallet wallet;
     private String linkingCode;
     private Image linkingCodeQr;
-    private TokenWallet tokenWallet;
+    private final TokenWallet tokenWallet;
 
     // State Fields
     private boolean userLoaded;
     private boolean identityLoaded;
-    private final MetaPermissionAttachment globalAttachment;
-    private final MetaPermissionAttachment worldAttachment;
+    private MetaPermissionAttachment globalAttachment;
+    private MetaPermissionAttachment worldAttachment;
     private final Map<String, Set<String>> worldPermissionMap = new HashMap<>();
 
     // Trade Fields
@@ -79,172 +84,212 @@ public class MetaPlayer {
 
     private final PlayerListener listener;
 
-    public MetaPlayer(SpigotBootstrap bootstrap, Player player) {
-        this.bootstrap = bootstrap;
-        this.bukkitPlayer = player;
+    public MetaPlayer(OfflinePlayer p) {
+        this.uuid = p.getUniqueId();
+        this.questionablePlayer = new QuestionablePlayer(uuid);
         this.tokenWallet = new TokenWallet();
-        this.globalAttachment = new MetaPermissionAttachment(player, bootstrap.plugin());
-        this.worldAttachment = new MetaPermissionAttachment(player, bootstrap.plugin());
+
         this.listener = PlayerListener.of(this);
-        bootstrap.plugin().getServer().getPluginManager().registerEvents(listener, bootstrap.plugin());
-        this.uberBoard = UberBoard.of(player, CC.BLUE_400.bold() + "MetaCity",
-                p -> "ENJ: " + getEnjAllowance().doubleValue());
+        MetaCity.getInstance().getServer().getPluginManager().registerEvents(listener, MetaCity.getInstance());
+
+        this.uberBoard = UberBoard.of(p, new MetaTemplate());
         uberBoard.setColor(ChatColor.BLUE);
+    }
+
+    void onJoin() {
+        questionablePlayer.getPlayer().ifPresent(p -> {
+            this.globalAttachment = new MetaPermissionAttachment(p);
+            this.worldAttachment = new MetaPermissionAttachment(p);
+
+            if (identityLoaded) {
+                if (isLinked()) {
+                    Bukkit.getScheduler().runTask(MetaCity.getInstance(), this::addLinkPermissions);
+                } else {
+                    Bukkit.getScheduler().runTask(MetaCity.getInstance(), this::removeTokenizedItems);
+                    Bukkit.getScheduler().runTask(MetaCity.getInstance(), this::removeLinkPermissions);
+                    return;
+                }
+
+                removeQrMap();
+
+                if (identity.getWallet().getEnjAllowance() == null || identity.getWallet()
+                        .getEnjAllowance()
+                        .doubleValue() <= 0.0) {
+                    Translation.WALLET_ALLOWANCENOTSET.send(p);
+                }
+            }
+
+            MetaCity.getInstance().chain().updateWallet(this, w -> this.wallet = w);
+            validateInventory();
+            initPermissions();
+        });
+    }
+
+    private String formatTime(long time) {
+        boolean am = time < 12000;
+        int hr = (int) Math.floor(time / 1000D);
+        int mins = Math.min(Math.round((60F / (time - (hr * 1000))) * 1000), 59);
+        return hr + ":" + mins + " " + (am ? "AM" : "PM");
     }
 
     public UberBoard board() {
         return uberBoard;
     }
 
-    public Player getBukkitPlayer() {
-        return bukkitPlayer;
+    public UUID uuid() {
+        return uuid;
     }
 
-    public void loadUser(User user) {
+    public Optional<Player> player() {
+        return questionablePlayer.getPlayer();
+    }
+
+    public Optional<OfflinePlayer> offlinePlayer() {
+        return questionablePlayer.getOfflinePlayer();
+    }
+
+    public Optional<User> user() {
+        return Optional.ofNullable(user);
+    }
+
+    public Optional<Identity> identity() {
+        return Optional.ofNullable(identity);
+    }
+
+    public Optional<Wallet> wallet() {
+        return Optional.ofNullable(wallet);
+    }
+
+    protected void setUser(User user) {
         if (user == null) {
             userId = null;
             userLoaded = false;
         } else {
             userId = user.getId();
             userLoaded = true;
+            this.user = user;
 
             Optional<Identity> optionalIdentity = user.getIdentities().stream()
-                                                      .filter(identity -> identity.getAppId() == MetaConfig.getAppId())
-                                                      .findFirst();
+                    .filter(identity -> identity.getAppId() == MetaConfig.getAppId())
+                    .findFirst();
             optionalIdentity.ifPresent(identity -> identityId = identity.getId());
         }
     }
 
-    public void loadIdentity(Identity identity) {
-        identityId     = null;  // Assume player has no identity
-        wallet         = null;  //
-        linkingCode    = null;  //
+    protected void setIdentity(Identity identity) {
+        identityId = null;  // Assume player has no identity
+        wallet = null;  //
+        linkingCode = null;  //
         setLinkingCodeQr(null); //
         identityLoaded = false; //
         tokenWallet.clear();
-        globalAttachment.clear();   // Clears all permissions
-        worldAttachment.clear();    //
+        if (globalAttachment != null) globalAttachment.clear();   // Clears all permissions
+        if (worldAttachment != null) worldAttachment.clear();    //
         worldPermissionMap.clear(); //
+        this.identity = identity;
 
-        if (identity == null)
-            return;
+        if (identity == null) return;
 
         identityId = identity.getId();
         wallet = identity.getWallet();
         linkingCode = identity.getLinkingCode();
-        FetchQrImageTask.fetch(bootstrap, this, identity.getLinkingCodeQr());
+        FetchQrImageTask.fetch(this, identity.getLinkingCodeQr());
 
         identityLoaded = true;
 
-        NotificationsService service   = bootstrap.getNotificationsService();
-        boolean listening = service.isSubscribedToIdentity(identityId);
-        System.out.println("IdentityID: " + identityId);
-        if (!listening) {
-            System.out.println("not listening, subscribing... " + identityId);
-            service.subscribeToIdentity(identityId);
-        }
+        Chain chain = MetaCity.getInstance().chain();
+        chain.listenToIdentity(identityId);
 
-
-        if (isLinked()) {
-            Bukkit.getScheduler().runTask(bootstrap.plugin(), this::addLinkPermissions);
-        } else {
-            Bukkit.getScheduler().runTask(bootstrap.plugin(), this::removeTokenizedItems);
-            Bukkit.getScheduler().runTask(bootstrap.plugin(), this::removeLinkPermissions);
-            return;
-        }
-
-        removeQrMap();
-
-        if (identity.getWallet().getEnjAllowance() == null || identity.getWallet()
-                                                                      .getEnjAllowance()
-                                                                      .doubleValue() <= 0.0) {
-            Translation.WALLET_ALLOWANCENOTSET.send(bukkitPlayer);
-        }
-
-        initWallet();
-        initPermissions();
+        chain.updateWallet(this, w -> this.wallet = w);
+        if (player().isPresent()) initPermissions();
     }
 
-    public void initWallet() {
-        if (wallet == null || StringUtils.isEmpty(wallet.getEthAddress()))
-            return;
-
-        try {
-            HttpResponse<GraphQLResponse<List<Balance>>> networkResponse;
-            networkResponse = bootstrap.getTrustedPlatformClient()
-                                       .getBalanceService()
-                                       .getBalancesSync(new GetBalances()
-                                               .valGt(0)
-                                               .ethAddress(wallet.getEthAddress()));
-            if (!networkResponse.isSuccess())
-                throw new NetworkException(networkResponse.code());
-
-            GraphQLResponse<List<Balance>> graphQLResponse = networkResponse.body();
-            if (!graphQLResponse.isSuccess())
-                throw new GraphQLException(graphQLResponse.getErrors());
-
-            tokenWallet.addBalances(graphQLResponse.getData());
-            validateInventory();
-        } catch (Exception ex) {
-            bootstrap.log(ex);
-        }
-    }
-
+    /**
+     * Validate the players inventory, ensuring it is up to date with the players wallet
+     */
     public void validateInventory() {
-        if (bukkitPlayer == null)
-            return;
+        player().ifPresent(p -> {
+            tokenWallet.getBalances().forEach(MutableBalance::reset);
 
-        tokenWallet.getBalances().forEach(MutableBalance::reset);
+            validatePlayerInventory();
+            validatePlayerEquipment();
+            validatePlayerCursor();
 
-        validatePlayerInventory();
-        validatePlayerEquipment();
-        validatePlayerCursor();
+            if (activeTradeView != null)
+                activeTradeView.validateInventory();
+            if (activeWalletView != null)
+                activeWalletView.validateInventory();
+        });
+    }
 
-        if (activeTradeView != null)
-            activeTradeView.validateInventory();
-        if (activeWalletView != null)
-            activeWalletView.validateInventory();
+    /**
+     * Update the token with the given id, so the players inventory matches the new token id
+     * @param id The token id
+     */
+    public void updateToken(String id) {
+        player().ifPresent(p -> {
+            if (tokenWallet == null) return;
+
+            TokenModel tokenModel = MetaCity.getInstance().getTokenManager().getToken(id);
+            if (tokenModel == null)
+                return;
+
+            MutableBalance balance = tokenWallet.getBalance(tokenModel.getFullId());
+            if (balance == null || balance.withdrawn() == 0)
+                return;
+
+            updatePlayerInventory(tokenModel, balance);
+            updatePlayerEquipment(tokenModel, balance);
+            updatePlayerCursor(tokenModel, balance);
+
+            if (activeTradeView != null)
+                activeTradeView.updateInventory();
+            if (activeWalletView != null)
+                activeWalletView.updateInventory();
+        });
     }
 
     private void validatePlayerInventory() {
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        player().ifPresent(p -> {
+            TokenManager tokenManager = MetaCity.getInstance().getTokenManager();
 
-        PlayerInventory inventory = bukkitPlayer.getInventory();
-        for (int i = inventory.getSize() - 1; i >= 0; i--) {
-            ItemStack is = inventory.getItem(i);
-            if (!TokenUtils.hasTokenData(is)) {
-                continue;
-            } else if (!TokenUtils.isValidTokenItem(is)) {
-                inventory.clear(i);
-                bootstrap.debug(String.format("Removed corrupted token from %s's inventory", bukkitPlayer.getDisplayName()));
-                continue;
+            PlayerInventory inventory = p.getInventory();
+            for (int i = inventory.getSize() - 1; i >= 0; i--) {
+                ItemStack is = inventory.getItem(i);
+                if (!TokenUtils.hasTokenData(is)) {
+                    continue;
+                } else if (!TokenUtils.isValidTokenItem(is)) {
+                    inventory.clear(i);
+                    Logger.debug(String.format("Removed corrupted token from %s's inventory", p.getDisplayName()));
+                    continue;
+                }
+
+                String fullId = TokenUtils.createFullId(TokenUtils.getTokenID(is), TokenUtils.getTokenIndex(is));
+                TokenModel tokenModel = tokenManager.getToken(fullId);
+                MutableBalance balance = tokenWallet.getBalance(fullId);
+
+                if (TokenUtils.isNonFungible(is) && tokenModel == null) {
+                    tokenModel = tokenManager.getToken(TokenUtils.getTokenID(is));
+                }
+
+                if (tokenModel == null
+                        || balance == null
+                        || balance.amountAvailableForWithdrawal() == 0) {
+                    inventory.clear(i);
+                } else if (tokenModel.getWalletViewState() != TokenWalletViewState.WITHDRAWABLE) {
+                    balance.deposit(is.getAmount());
+                    inventory.clear(i);
+                } else {
+                    if (balance.amountAvailableForWithdrawal() < is.getAmount())
+                        is.setAmount(balance.amountAvailableForWithdrawal());
+
+                    balance.withdraw(is.getAmount());
+
+                    updateTokenInInventoryCheck(tokenModel, balance, is, inventory, i);
+                }
             }
+        });
 
-            String         fullId     = TokenUtils.createFullId(TokenUtils.getTokenID(is),
-                                                                TokenUtils.getTokenIndex(is));
-            TokenModel tokenModel = tokenManager.getToken(fullId);
-            MutableBalance balance    = tokenWallet.getBalance(fullId);
-
-            if (TokenUtils.isNonFungible(is) && tokenModel == null) {
-                tokenModel = tokenManager.getToken(TokenUtils.getTokenID(is));
-            }
-
-            if (tokenModel == null
-                    || balance == null
-                    || balance.amountAvailableForWithdrawal() == 0) {
-                inventory.clear(i);
-            } else if (tokenModel.getWalletViewState() != TokenWalletViewState.WITHDRAWABLE) {
-                balance.deposit(is.getAmount());
-                inventory.clear(i);
-            } else {
-                if (balance.amountAvailableForWithdrawal() < is.getAmount())
-                    is.setAmount(balance.amountAvailableForWithdrawal());
-
-                balance.withdraw(is.getAmount());
-
-                updateTokenInInventoryCheck(tokenModel, balance, is, inventory, i);
-            }
-        }
     }
 
     private void updateTokenInInventoryCheck(TokenModel tokenModel,
@@ -261,7 +306,7 @@ public class MetaPlayer {
 
         newStack.setAmount(is.getAmount());
 
-        String newNBT  = NBTItem.convertItemtoNBT(newStack).toString();
+        String newNBT = NBTItem.convertItemtoNBT(newStack).toString();
         String itemNBT = NBTItem.convertItemtoNBT(is).toString();
         if (itemNBT.equals(newNBT)) {
             return;
@@ -274,38 +319,40 @@ public class MetaPlayer {
     }
 
     private void validatePlayerEquipment() {
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        player().ifPresent(p -> {
+            TokenManager tokenManager = MetaCity.getInstance().getTokenManager();
 
-        for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemStack is = getEquipment(slot);
-            if (!TokenUtils.hasTokenData(is)) {
-                continue;
-            } else if (!TokenUtils.isValidTokenItem(is)) {
-                setEquipment(slot, null);
-                bootstrap.debug(String.format("Removed corrupted token from %s's equipment", bukkitPlayer.getDisplayName()));
-                continue;
+            for (EquipmentSlot slot : EquipmentSlot.values()) {
+                ItemStack is = getEquipment(slot);
+                if (!TokenUtils.hasTokenData(is)) {
+                    continue;
+                } else if (!TokenUtils.isValidTokenItem(is)) {
+                    setEquipment(slot, null);
+                    Logger.debug(String.format("Removed corrupted token from %s's equipment", p.getDisplayName()));
+                    continue;
+                }
+
+                String fullId = TokenUtils.createFullId(TokenUtils.getTokenID(is),
+                        TokenUtils.getTokenIndex(is));
+                TokenModel tokenModel = tokenManager.getToken(fullId);
+                MutableBalance balance = tokenWallet.getBalance(fullId);
+                if (tokenModel == null
+                        || balance == null
+                        || balance.amountAvailableForWithdrawal() == 0) {
+                    setEquipment(slot, null);
+                } else if (tokenModel.getWalletViewState() != TokenWalletViewState.WITHDRAWABLE) {
+                    balance.deposit(is.getAmount());
+                    setEquipment(slot, null);
+                } else {
+                    if (balance.amountAvailableForWithdrawal() < is.getAmount())
+                        is.setAmount(balance.amountAvailableForWithdrawal());
+
+                    balance.withdraw(is.getAmount());
+
+                    updateTokenInEquipmentCheck(tokenModel, balance, is, slot);
+                }
             }
-
-            String         fullId     = TokenUtils.createFullId(TokenUtils.getTokenID(is),
-                                                                TokenUtils.getTokenIndex(is));
-            TokenModel     tokenModel = tokenManager.getToken(fullId);
-            MutableBalance balance    = tokenWallet.getBalance(fullId);
-            if (tokenModel == null
-                    || balance == null
-                    || balance.amountAvailableForWithdrawal() == 0) {
-                setEquipment(slot, null);
-            } else if (tokenModel.getWalletViewState() != TokenWalletViewState.WITHDRAWABLE) {
-                balance.deposit(is.getAmount());
-                setEquipment(slot, null);
-            } else {
-                if (balance.amountAvailableForWithdrawal() < is.getAmount())
-                    is.setAmount(balance.amountAvailableForWithdrawal());
-
-                balance.withdraw(is.getAmount());
-
-                updateTokenInEquipmentCheck(tokenModel, balance, is, slot);
-            }
-        }
+        });
     }
 
     private void updateTokenInEquipmentCheck(TokenModel tokenModel,
@@ -321,7 +368,7 @@ public class MetaPlayer {
 
         newStack.setAmount(is.getAmount());
 
-        String newNBT  = NBTItem.convertItemtoNBT(newStack).toString();
+        String newNBT = NBTItem.convertItemtoNBT(newStack).toString();
         String itemNBT = NBTItem.convertItemtoNBT(is).toString();
         if (itemNBT.equals(newNBT)) {
             return;
@@ -339,38 +386,40 @@ public class MetaPlayer {
     }
 
     private void validatePlayerCursor() {
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        player().ifPresent(p -> {
+            TokenManager tokenManager = MetaCity.getInstance().getTokenManager();
 
-        InventoryView view = bukkitPlayer.getOpenInventory();
-        ItemStack     is   = view.getCursor();
-        if (!TokenUtils.hasTokenData(is)) {
-            return;
-        } else if (!TokenUtils.isValidTokenItem(is)) {
-            view.setCursor(null);
-            bootstrap.debug(String.format("Removed corrupted token from %s's cursor", bukkitPlayer.getDisplayName()));
-            return;
-        }
-
-        String         fullId     = TokenUtils.createFullId(TokenUtils.getTokenID(is),
-                                                            TokenUtils.getTokenIndex(is));
-        TokenModel     tokenModel = tokenManager.getToken(fullId);
-        MutableBalance balance    = tokenWallet.getBalance(fullId);
-        if (tokenModel == null
-                || balance == null
-                || balance.amountAvailableForWithdrawal() == 0) {
-            view.setCursor(null);
-        } else if (tokenModel.getWalletViewState() != TokenWalletViewState.WITHDRAWABLE) {
-            balance.deposit(is.getAmount());
-            view.setCursor(null);
-        } else {
-            if (balance.amountAvailableForWithdrawal() < is.getAmount()) {
-                is.setAmount(balance.amountAvailableForWithdrawal());
+            InventoryView view = p.getOpenInventory();
+            ItemStack is = view.getCursor();
+            if (!TokenUtils.hasTokenData(is)) {
+                return;
+            } else if (!TokenUtils.isValidTokenItem(is)) {
+                view.setCursor(null);
+                Logger.debug(String.format("Removed corrupted token from %s's cursor", p.getDisplayName()));
+                return;
             }
 
-            balance.withdraw(is.getAmount());
+            String fullId = TokenUtils.createFullId(TokenUtils.getTokenID(is),
+                    TokenUtils.getTokenIndex(is));
+            TokenModel tokenModel = tokenManager.getToken(fullId);
+            MutableBalance balance = tokenWallet.getBalance(fullId);
+            if (tokenModel == null
+                    || balance == null
+                    || balance.amountAvailableForWithdrawal() == 0) {
+                view.setCursor(null);
+            } else if (tokenModel.getWalletViewState() != TokenWalletViewState.WITHDRAWABLE) {
+                balance.deposit(is.getAmount());
+                view.setCursor(null);
+            } else {
+                if (balance.amountAvailableForWithdrawal() < is.getAmount()) {
+                    is.setAmount(balance.amountAvailableForWithdrawal());
+                }
 
-            updateTokenInCursorCheck(tokenModel, balance, is, view);
-        }
+                balance.withdraw(is.getAmount());
+
+                updateTokenInCursorCheck(tokenModel, balance, is, view);
+            }
+        });
     }
 
     private void updateTokenInCursorCheck(TokenModel tokenModel,
@@ -386,7 +435,7 @@ public class MetaPlayer {
 
         newStack.setAmount(is.getAmount());
 
-        String newNBT  = NBTItem.convertItemtoNBT(newStack).toString();
+        String newNBT = NBTItem.convertItemtoNBT(newStack).toString();
         String itemNBT = NBTItem.convertItemtoNBT(is).toString();
         if (itemNBT.equals(newNBT)) {
             return;
@@ -399,7 +448,9 @@ public class MetaPlayer {
     }
 
     private ItemStack getEquipment(EquipmentSlot slot) {
-        PlayerInventory inventory = bukkitPlayer.getInventory();
+        if (!player().isPresent()) throw new IllegalStateException("Unable to get equipment of offline player");
+        Player p = player().get();
+        PlayerInventory inventory = p.getInventory();
 
         switch (slot) {
             case HAND:
@@ -415,161 +466,151 @@ public class MetaPlayer {
             case FEET:
                 return inventory.getBoots();
             default:
-                bootstrap.debug(String.format("Unsupported equipment slot type \"%s\"", slot.name()));
+                Logger.debug(String.format("Unsupported equipment slot type \"%s\"", slot.name()));
                 return null;
         }
     }
 
     private void setEquipment(EquipmentSlot slot, ItemStack is) {
-        PlayerInventory inventory = bukkitPlayer.getInventory();
+        player().ifPresent(p -> {
+            PlayerInventory inventory = p.getInventory();
 
-        switch (slot) {
-            case HAND:
-                break;
-            case OFF_HAND:
-                inventory.setItemInOffHand(is);
-                break;
-            case CHEST:
-                inventory.setChestplate(is);
-                break;
-            case LEGS:
-                inventory.setLeggings(is);
-                break;
-            case HEAD:
-                inventory.setHelmet(is);
-                break;
-            case FEET:
-                inventory.setBoots(is);
-                break;
-            default:
-                bootstrap.debug(String.format("Unsupported equipment slot type \"%s\"", slot.name()));
-                break;
-        }
-    }
+            switch (slot) {
+                case HAND:
+                    break;
+                case OFF_HAND:
+                    inventory.setItemInOffHand(is);
+                    break;
+                case CHEST:
+                    inventory.setChestplate(is);
+                    break;
+                case LEGS:
+                    inventory.setLeggings(is);
+                    break;
+                case HEAD:
+                    inventory.setHelmet(is);
+                    break;
+                case FEET:
+                    inventory.setBoots(is);
+                    break;
+                default:
+                    Logger.debug(String.format("Unsupported equipment slot type \"%s\"", slot.name()));
+                    break;
+            }
+        });
 
-    public void updateToken(String id) {
-        if (bukkitPlayer == null || tokenWallet == null)
-            return;
-
-        TokenModel tokenModel = bootstrap.getTokenManager().getToken(id);
-        if (tokenModel == null)
-            return;
-
-        MutableBalance balance = tokenWallet.getBalance(tokenModel.getFullId());
-        if (balance == null || balance.withdrawn() == 0)
-            return;
-
-        updatePlayerInventory(tokenModel, balance);
-        updatePlayerEquipment(tokenModel, balance);
-        updatePlayerCursor(tokenModel, balance);
-
-        if (activeTradeView != null)
-            activeTradeView.updateInventory();
-        if (activeWalletView != null)
-            activeWalletView.updateInventory();
     }
 
     private void updatePlayerInventory(@NonNull TokenModel tokenModel,
                                        @NonNull MutableBalance balance) throws NullPointerException {
-        PlayerInventory inventory = bukkitPlayer.getInventory();
-        for (int i = 0; i < inventory.getStorageContents().length; i++) {
-            ItemStack is = inventory.getItem(i);
-            if (!TokenUtils.hasTokenData(is)) {
-                continue;
-            } else if (!TokenUtils.isValidTokenItem(is)) {
-                inventory.clear(i);
-                bootstrap.debug(String.format("Removed corrupted token from %s's inventory", bukkitPlayer.getDisplayName()));
-                continue;
+        player().ifPresent(p -> {
+            PlayerInventory inventory = p.getInventory();
+            for (int i = 0; i < inventory.getStorageContents().length; i++) {
+                ItemStack is = inventory.getItem(i);
+                if (!TokenUtils.hasTokenData(is)) {
+                    continue;
+                } else if (!TokenUtils.isValidTokenItem(is)) {
+                    inventory.clear(i);
+                    Logger.debug(String.format("Removed corrupted token from %s's inventory", p.getDisplayName()));
+                    continue;
+                }
+
+                String fullId = TokenUtils.createFullId(TokenUtils.getTokenID(is),
+                        TokenUtils.getTokenIndex(is));
+                if (!fullId.equals(tokenModel.getFullId()))
+                    continue;
+
+                updateTokenInInventoryCheck(tokenModel, balance, is, inventory, i);
             }
-
-            String fullId = TokenUtils.createFullId(TokenUtils.getTokenID(is),
-                                                    TokenUtils.getTokenIndex(is));
-            if (!fullId.equals(tokenModel.getFullId()))
-                continue;
-
-            updateTokenInInventoryCheck(tokenModel, balance, is, inventory, i);
-        }
+        });
     }
 
     private void updatePlayerEquipment(@NonNull TokenModel tokenModel,
                                        @NonNull MutableBalance balance) throws NullPointerException {
-        for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemStack is = getEquipment(slot);
-            if (!TokenUtils.hasTokenData(is)) {
-                continue;
-            } else if (!TokenUtils.isValidTokenItem(is)) {
-                setEquipment(slot, null);
-                bootstrap.debug(String.format("Removed corrupted token from %s's equipment", bukkitPlayer.getDisplayName()));
-                continue;
+        player().ifPresent(p -> {
+            for (EquipmentSlot slot : EquipmentSlot.values()) {
+                ItemStack is = getEquipment(slot);
+                if (!TokenUtils.hasTokenData(is)) {
+                    continue;
+                } else if (!TokenUtils.isValidTokenItem(is)) {
+                    setEquipment(slot, null);
+                    Logger.debug(String.format("Removed corrupted token from %s's equipment", p.getDisplayName()));
+                    continue;
+                }
+
+                String fullId = TokenUtils.createFullId(TokenUtils.getTokenID(is),
+                        TokenUtils.getTokenIndex(is));
+                if (!fullId.equals(tokenModel.getFullId()))
+                    continue;
+
+                updateTokenInEquipmentCheck(tokenModel, balance, is, slot);
             }
-
-            String fullId = TokenUtils.createFullId(TokenUtils.getTokenID(is),
-                                                    TokenUtils.getTokenIndex(is));
-            if (!fullId.equals(tokenModel.getFullId()))
-                continue;
-
-            updateTokenInEquipmentCheck(tokenModel, balance, is, slot);
-        }
+        });
     }
 
     private void updatePlayerCursor(@NonNull TokenModel tokenModel,
                                     @NonNull MutableBalance balance) throws NullPointerException {
-        InventoryView view = bukkitPlayer.getOpenInventory();
-        ItemStack     is   = view.getCursor();
-        if (!TokenUtils.hasTokenData(is)) {
-            return;
-        } else if (!TokenUtils.isValidTokenItem(is)) {
-            view.setCursor(null);
-            bootstrap.debug(String.format("Removed corrupted token from %s's cursor", bukkitPlayer.getDisplayName()));
-            return;
-        }
+        player().ifPresent(p -> {
+            InventoryView view = p.getOpenInventory();
+            ItemStack is = view.getCursor();
+            if (!TokenUtils.hasTokenData(is)) {
+                return;
+            } else if (!TokenUtils.isValidTokenItem(is)) {
+                view.setCursor(null);
+                Logger.debug(String.format("Removed corrupted token from %s's cursor", p.getDisplayName()));
+                return;
+            }
 
-        String fullId = TokenUtils.createFullId(TokenUtils.getTokenID(is),
-                                                TokenUtils.getTokenIndex(is));
-        if (!fullId.equals(tokenModel.getFullId()))
-            return;
+            String fullId = TokenUtils.createFullId(TokenUtils.getTokenID(is),
+                    TokenUtils.getTokenIndex(is));
+            if (!fullId.equals(tokenModel.getFullId()))
+                return;
 
-        updateTokenInCursorCheck(tokenModel, balance, is, view);
+            updateTokenInCursorCheck(tokenModel, balance, is, view);
+        });
     }
 
-    public void initPermissions() {
-        if (tokenWallet == null)
-            return;
+    private void initPermissions() {
+        if (tokenWallet == null) return;
 
-        TokenManager tokenManager = bootstrap.getTokenManager();
-        Set<String> baseFullIds = new HashSet<>();
+        player().ifPresent(p -> {
+            TokenManager tokenManager = MetaCity.getInstance().getTokenManager();
+            Set<String> baseFullIds = new HashSet<>();
 
-        for (MutableBalance balance : tokenWallet.getBalances()) {
-            String fullId = TokenUtils.createFullId(balance.id(), balance.index());
-            if (balance.balance() == 0 || !tokenManager.hasToken(fullId))
-                continue;
+            for (MutableBalance balance : tokenWallet.getBalances()) {
+                String fullId = TokenUtils.createFullId(balance.id(), balance.index());
+                if (balance.balance() == 0 || !tokenManager.hasToken(fullId))
+                    continue;
 
-            String baseFullId = TokenUtils.normalizeFullId(fullId);
-            if (!baseFullId.equals(fullId)) // Collects the ids for non-fungible base models
-                baseFullIds.add(baseFullId);
+                String baseFullId = TokenUtils.normalizeFullId(fullId);
+                if (!baseFullId.equals(fullId)) // Collects the ids for non-fungible base models
+                    baseFullIds.add(baseFullId);
 
-            initPermissions(fullId);
-        }
+                initPermissions(fullId);
+            }
 
-        baseFullIds.forEach(this::initPermissions);
+            baseFullIds.forEach(this::initPermissions);
 
-        setWorldAttachment(bukkitPlayer.getWorld().getName());
+            setWorldAttachment(p.getWorld().getName());
+        });
     }
 
     private void initPermissions(String fullId) {
         // Checks if the token has assigned permissions
-        Map<String, Set<String>> worldPerms = bootstrap.getTokenManager()
-                .getTokenPermissions()
-                .getTokenPermissions(fullId);
-        if (worldPerms == null)
-            return;
+        player().ifPresent(p -> {
+            Map<String, Set<String>> worldPerms = MetaCity.getInstance().getTokenManager()
+                    .getTokenPermissions()
+                    .getTokenPermissions(fullId);
+            if (worldPerms == null)
+                return;
 
-        // Assigns global and world permissions
-        worldPerms.forEach((world, perms) -> {
-            if (world.equals(TokenManager.GLOBAL))
-                globalAttachment.addPermissions(perms);
-            else
-                worldPermissionMap.computeIfAbsent(world, k -> new HashSet<>()).addAll(perms);
+            // Assigns global and world permissions
+            worldPerms.forEach((world, perms) -> {
+                if (world.equals(TokenManager.GLOBAL))
+                    globalAttachment.addPermissions(perms);
+                else
+                    worldPermissionMap.computeIfAbsent(world, k -> new HashSet<>()).addAll(perms);
+            });
         });
     }
 
@@ -581,13 +622,17 @@ public class MetaPlayer {
             worldAttachment.addPermissions(perms);
     }
 
+    /**
+     * Adds permissions to the token
+     * @param tokenModel The token model to add the permissions to
+     */
     public void addTokenPermissions(TokenModel tokenModel) {
         if (tokenWallet == null
                 || tokenModel == null
                 || tokenModel.isMarkedForDeletion())
             return;
 
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        TokenManager tokenManager = MetaCity.getInstance().getTokenManager();
 
         MutableBalance balance = tokenWallet.getBalance(tokenModel.getFullId());
         if (balance == null
@@ -596,7 +641,7 @@ public class MetaPlayer {
             return;
 
         tokenModel.getPermissionsMap()
-                  .forEach((world, perms) -> perms.forEach(perm -> addTokenPermission(tokenModel, perm, world)));
+                .forEach((world, perms) -> perms.forEach(perm -> addTokenPermission(tokenModel, perm, world)));
 
         // Adds the permissions from the base model if necessary
         boolean applyBasePermissions = tokenModel.isNonFungibleInstance()
@@ -605,16 +650,21 @@ public class MetaPlayer {
             TokenModel baseModel = tokenManager.getToken(tokenModel.getId());
             if (baseModel != null) {
                 baseModel.getPermissionsMap()
-                         .forEach((world, perms) -> perms.forEach(perm -> addTokenPermission(baseModel, perm, world)));
+                        .forEach((world, perms) -> perms.forEach(perm -> addTokenPermission(baseModel, perm, world)));
             }
         }
     }
 
+    /**
+     * Add a permission to a token in a specific world
+     * @param perm The permission to add
+     * @param id The id of the token
+     * @param world The world to add the token permission for
+     */
     public void addPermission(String perm, String id, String world) {
-        if (tokenWallet == null)
-            return;
+        if (tokenWallet == null) return;
 
-        TokenModel tokenModel = bootstrap.getTokenManager().getToken(id);
+        TokenModel tokenModel = MetaCity.getInstance().getTokenManager().getToken(id);
         if (tokenModel != null
                 && tokenModel.isNonfungible()
                 && tokenModel.isBaseModel()
@@ -640,7 +690,7 @@ public class MetaPlayer {
     }
 
     private void addGlobalPermission(String perm, String fullId) {
-        Map<String, Set<String>> worldPerms = bootstrap.getTokenManager()
+        Map<String, Set<String>> worldPerms = MetaCity.getInstance().getTokenManager()
                 .getTokenPermissions()
                 .getPermissionTokens(TokenManager.GLOBAL);
         if (worldPerms == null)
@@ -657,26 +707,32 @@ public class MetaPlayer {
     }
 
     private void addWorldPermission(String perm, String fullId, String world) {
-        Map<String, Set<String>> worldPerms = bootstrap.getTokenManager()
-                .getTokenPermissions()
-                .getPermissionTokens(world);
+        player().ifPresent(p -> {
+            Map<String, Set<String>> worldPerms = MetaCity.getInstance().getTokenManager()
+                    .getTokenPermissions()
+                    .getPermissionTokens(world);
 
-        // Gets the tokens with the given permission from the permission graph
-        Set<String> permTokens = worldPerms.get(perm);
-        if (permTokens == null)
-            return;
+            // Gets the tokens with the given permission from the permission graph
+            Set<String> permTokens = worldPerms.get(perm);
+            if (permTokens == null)
+                return;
 
-        // Checks if the player needs to be given the permission
-        Set<String> perms = worldPermissionMap.computeIfAbsent(world, k -> new HashSet<>());
-        if (!perms.contains(perm) && permTokens.contains(fullId)) {
-            perms.add(perm);
+            // Checks if the player needs to be given the permission
+            Set<String> perms = worldPermissionMap.computeIfAbsent(world, k -> new HashSet<>());
+            if (!perms.contains(perm) && permTokens.contains(fullId)) {
+                perms.add(perm);
 
-            String currentWorld = bukkitPlayer.getWorld().getName();
-            if (currentWorld.equals(world))
-                worldAttachment.setPermission(perm);
-        }
+                String currentWorld = p.getWorld().getName();
+                if (currentWorld.equals(world))
+                    worldAttachment.setPermission(perm);
+            }
+        });
     }
 
+    /**
+     * Remove permissions from the token
+     * @param tokenModel The token model to remove the permissions from
+     */
     public void removeTokenPermissions(TokenModel tokenModel) {
         if (tokenWallet == null || tokenModel == null) {
             return;
@@ -687,20 +743,25 @@ public class MetaPlayer {
         }
 
         tokenModel.getPermissionsMap()
-                  .forEach((world, perms) -> perms.forEach(perm -> removePermission(perm, world)));
+                .forEach((world, perms) -> perms.forEach(perm -> removePermission(perm, world)));
 
         // Removes the permissions from the base model if necessary
         boolean removeBasePermissions = tokenModel.isNonFungibleInstance()
                 && !hasNonfungibleInstance(tokenModel.getId(), Collections.singleton(tokenModel.getIndex()));
         if (removeBasePermissions) {
-            TokenModel baseModel = bootstrap.getTokenManager().getToken(tokenModel.getId());
+            TokenModel baseModel = MetaCity.getInstance().getTokenManager().getToken(tokenModel.getId());
             if (baseModel != null) {
                 baseModel.getPermissionsMap()
-                         .forEach((world, perms) -> perms.forEach(perm -> removePermission(perm, world)));
+                        .forEach((world, perms) -> perms.forEach(perm -> removePermission(perm, world)));
             }
         }
     }
 
+    /**
+     * Remove permission from the world
+     * @param perm The permission to remove
+     * @param world The world to remove the permission from
+     */
     public void removePermission(String perm, String world) {
         if (tokenWallet == null)
             return;
@@ -715,7 +776,7 @@ public class MetaPlayer {
     }
 
     private void removeGlobalPermission(String perm) {
-        Map<String, Set<String>> worldPerms = bootstrap.getTokenManager()
+        Map<String, Set<String>> worldPerms = MetaCity.getInstance().getTokenManager()
                 .getTokenPermissions()
                 .getPermissionTokens(TokenManager.GLOBAL);
         if (worldPerms == null)
@@ -734,38 +795,40 @@ public class MetaPlayer {
     }
 
     private void removeWorldPermission(String perm, String world) {
-        Map<String, Set<String>> worldPerms = bootstrap.getTokenManager()
-                .getTokenPermissions()
-                .getPermissionTokens(world);
-        if (worldPerms == null)
-            return;
+        player().ifPresent(p -> {
+            Map<String, Set<String>> worldPerms = MetaCity.getInstance().getTokenManager()
+                    .getTokenPermissions()
+                    .getPermissionTokens(world);
+            if (worldPerms == null)
+                return;
 
-        // Gets the tokens with the given permission from the permission graph
-        Set<String> permTokens = worldPerms.get(perm);
-        if (permTokens == null)
-            return;
+            // Gets the tokens with the given permission from the permission graph
+            Set<String> permTokens = worldPerms.get(perm);
+            if (permTokens == null)
+                return;
 
-        Set<String> intersect = retainPermissionTokens(permTokens);
+            Set<String> intersect = retainPermissionTokens(permTokens);
 
-        // Checks if the permission needs to be removed from the player
-        Set<String> perms = worldPermissionMap.computeIfAbsent(world, k -> new HashSet<>());
-        if (perms.contains(perm) && intersect.size() <= 0) {
-            perms.remove(perm);
+            // Checks if the permission needs to be removed from the player
+            Set<String> perms = worldPermissionMap.computeIfAbsent(world, k -> new HashSet<>());
+            if (perms.contains(perm) && intersect.size() <= 0) {
+                perms.remove(perm);
 
-            String currentWorld = bukkitPlayer.getWorld().getName();
-            if (currentWorld.equals(world))
-                worldAttachment.unsetPermission(perm);
-        }
+                String currentWorld = p.getWorld().getName();
+                if (currentWorld.equals(world))
+                    worldAttachment.unsetPermission(perm);
+            }
+        });
     }
 
     private Set<String> retainPermissionTokens(Set<String> permTokens) {
         Set<String> intersect = new HashSet<>();
 
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        TokenManager tokenManager = MetaCity.getInstance().getTokenManager();
 
         // Collects the full ids of all tokens that the player owns
         for (Map.Entry<String, MutableBalance> entry : tokenWallet.getBalancesMap().entrySet()) {
-            String         fullId  = entry.getKey();
+            String fullId = entry.getKey();
             MutableBalance balance = entry.getValue();
             if (balance.balance() > 0 && tokenManager.hasToken(fullId)) {
                 intersect.add(fullId);
@@ -782,108 +845,133 @@ public class MetaPlayer {
         return intersect;
     }
 
+    /**
+     * Reload the identity data for the player
+     */
     public void reloadIdentity() {
-        try {
-            HttpResponse<GraphQLResponse<List<Identity>>> networkResponse;
-            networkResponse = bootstrap.getTrustedPlatformClient()
-                                       .getIdentityService()
-                                       .getIdentitiesSync(new GetIdentities().identityId(identityId)
-                                                                             .withLinkingCode()
-                                                                             .withLinkingCodeQr()
-                                                                             .withWallet());
-            if (!networkResponse.isSuccess())
-                throw new NetworkException(networkResponse.code());
-
-            GraphQLResponse<List<Identity>> graphQLResponse = networkResponse.body();
-            if (!graphQLResponse.isSuccess())
-                throw new GraphQLException(graphQLResponse.getErrors());
-
-            Identity identity = null;
-            if (!graphQLResponse.getData().isEmpty())
-                identity = graphQLResponse.getData().get(0);
-
-            loadIdentity(identity);
-        } catch (Exception ex) {
-            bootstrap.log(ex);
-        }
+        MetaCity.getInstance().chain().updateIdentity(this, this::setIdentity);
     }
 
+    /**
+     * Unlink the player from the block chain
+     */
     public void unlink() {
-        if (!isLinked())
-            return;
+        if (!isLinked()) return;
 
-        bootstrap.getTrustedPlatformClient()
-                 .getIdentityService()
-                 .unlinkIdentitySync(new UnlinkIdentity().id(identityId));
+        MetaCity.getInstance().chain().unlink(this, i -> setIdentity(null));
     }
 
+    /**
+     * Called once the player is unlinked from the server successfully
+     */
     public void unlinked() {
-        if (!isLinked())
-            return;
+        if (!isLinked()) return;
 
-        Translation.COMMAND_UNLINK_SUCCESS.send(bukkitPlayer);
-        Translation.HINT_LINK.send(bukkitPlayer);
+        player().ifPresent(p -> {
+            Translation.COMMAND_UNLINK_SUCCESS.send(p);
+            Translation.HINT_LINK.send(p);
 
-        Bukkit.getScheduler().runTask(bootstrap.plugin(), this::removeTokenizedItems);
+            Bukkit.getScheduler().runTask(MetaCity.getInstance(), this::removeTokenizedItems);
+        });
+
         reloadIdentity();
     }
 
+    /**
+     * Remove tokenized items from the players inventory
+     */
     public void removeTokenizedItems() {
-        Inventory inventory = bukkitPlayer.getInventory();
-        for (int i = 0; i < inventory.getSize(); i++) {
-            ItemStack is    = inventory.getItem(i);
-            if (TokenUtils.hasTokenData(is))
-                inventory.setItem(i, null);
-        }
+        player().ifPresent(p -> {
+            Inventory inventory = p.getInventory();
+            for (int i = 0; i < inventory.getSize(); i++) {
+                ItemStack is = inventory.getItem(i);
+                if (TokenUtils.hasTokenData(is))
+                    inventory.setItem(i, null);
+            }
+        });
     }
 
+    /**
+     * Remove the QR map from the players inventory, if the player has it
+     */
     public void removeQrMap() {
-        InventoryView   view      = bukkitPlayer.getOpenInventory();
-        PlayerInventory inventory = bukkitPlayer.getInventory();
+        player().ifPresent(p -> {
+            InventoryView view = p.getOpenInventory();
+            PlayerInventory inventory = p.getInventory();
 
-        Inventory top    = view.getTopInventory();
-        Inventory bottom = view.getBottomInventory();
-        int size = top.getSize()
-                + bottom.getSize()
-                - inventory.getExtraContents().length
-                - inventory.getArmorContents().length;
-        for (int i = 0; i < size; i++) {
-            if (QrUtils.hasQrTag(view.getItem(i)))
-                view.setItem(i, null);
-        }
+            Inventory top = view.getTopInventory();
+            Inventory bottom = view.getBottomInventory();
+            int size = top.getSize()
+                    + bottom.getSize()
+                    - inventory.getExtraContents().length
+                    - inventory.getArmorContents().length;
+            for (int i = 0; i < size; i++) {
+                if (QrUtils.hasQrTag(view.getItem(i)))
+                    view.setItem(i, null);
+            }
 
-        if (QrUtils.hasQrTag(view.getCursor()))
-            view.setCursor(null);
-        if (QrUtils.hasQrTag(inventory.getItemInOffHand()))
-            inventory.setItemInOffHand(null);
+            if (QrUtils.hasQrTag(view.getCursor()))
+                view.setCursor(null);
+            if (QrUtils.hasQrTag(inventory.getItemInOffHand()))
+                inventory.setItemInOffHand(null);
+        });
     }
 
+    /**
+     * Add link permissions
+     */
     public void addLinkPermissions() {
-        MetaConfig.LINK_PERMISSIONS
-                 .forEach(globalAttachment::setPermission);
+        new ArrayList<>(MetaConfig.LINK_PERMISSIONS)
+                .forEach(globalAttachment::setPermission);
     }
 
+    /**
+     * Remove link permissions
+     */
     public void removeLinkPermissions() {
-        MetaConfig.LINK_PERMISSIONS
-                 .forEach(globalAttachment::unsetPermission);
+        new ArrayList<>(MetaConfig.LINK_PERMISSIONS)
+                .forEach(globalAttachment::unsetPermission);
     }
 
+    /**
+     * Check if the user has been loaded
+     * @return If the user has been loaded
+     */
     public boolean isUserLoaded() {
         return userLoaded;
     }
 
+    /**
+     * Check if the users identity has been loaded
+     * @return If the users identity has been loaded
+     */
     public boolean isIdentityLoaded() {
         return identityLoaded;
     }
 
+    /**
+     * Check if the user has been loaded and their identity has been loaded
+     * @return If the user has been loaded their identity has been loaded
+     */
     public boolean isLoaded() {
         return isUserLoaded() && isIdentityLoaded();
     }
 
+    /**
+     * Check if the users identity has been loaded and the wallet has been correctly loaded
+     * @return If the users identity has been loaded had the wallet has been correctly loaded
+     */
     public boolean isLinked() {
         return isIdentityLoaded() && wallet != null && !StringUtils.isEmpty(wallet.getEthAddress());
     }
 
+    /**
+     * Check if the user has a non-fungible token in their balance
+     * @param id The id of te non-fungible token
+     * @return If the user has a non-fungible token in their balance
+     * @throws IllegalArgumentException If no token exists matching the id or the id given is not non-fungible or not a base model
+     * @throws NullPointerException 
+     */
     public boolean hasNonfungibleInstance(@NonNull String id) throws IllegalArgumentException, NullPointerException {
         return hasNonfungibleInstance(id, null);
     }
@@ -929,6 +1017,7 @@ public class MetaPlayer {
 
         PlayerChangedWorldEvent.getHandlerList().unregister(listener);
         bukkitPlayer = null;
+        uberBoard.scoreboard().remove(bukkitPlayer);
     }
 
     public List<MetaPlayer> getSentTradeInvites() {

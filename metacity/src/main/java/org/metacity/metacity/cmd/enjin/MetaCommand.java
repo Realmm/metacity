@@ -20,17 +20,17 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public abstract class EnjCommand {
+public abstract class MetaCommand {
 
     protected SpigotBootstrap bootstrap;
-    protected Optional<EnjCommand> parent;
+    protected Optional<MetaCommand> parent;
     protected List<String> aliases;
-    protected List<EnjCommand> subCommands;
+    protected List<MetaCommand> subCommands;
     protected List<String> requiredArgs;
     protected List<String> optionalArgs;
     protected CommandRequirements requirements;
 
-    protected EnjCommand(SpigotBootstrap bootstrap, EnjCommand parent) {
+    protected MetaCommand(SpigotBootstrap bootstrap, MetaCommand parent) {
         this.bootstrap = bootstrap;
         this.parent = Optional.ofNullable(parent);
         this.aliases = new ArrayList<>();
@@ -42,11 +42,11 @@ public abstract class EnjCommand {
                 .build();
     }
 
-    public EnjCommand(SpigotBootstrap bootstrap) {
+    public MetaCommand(SpigotBootstrap bootstrap) {
         this(bootstrap, null);
     }
 
-    public EnjCommand(EnjCommand parent) {
+    public MetaCommand(MetaCommand parent) {
         this(parent.bootstrap, parent);
     }
 
@@ -92,7 +92,6 @@ public abstract class EnjCommand {
 
     public String getUsage(SenderType type, Usage usage) {
         String output = buildUsage(type, usage);
-        System.out.println("usage: " + output);
         if (type != SenderType.PLAYER)
             output = output.replaceFirst("/", "");
 
@@ -104,9 +103,9 @@ public abstract class EnjCommand {
 
         builder.append("&6/");
 
-        List<EnjCommand> commandStack = CommandContext.createCommandStackAsList(this);
+        List<MetaCommand> commandStack = CommandContext.createCommandStackAsList(this);
         for (int i = 0; i < commandStack.size(); i++) {
-            EnjCommand command = commandStack.get(i);
+            MetaCommand command = commandStack.get(i);
 
             if (i > 0)
                 builder.append(' ');
@@ -142,7 +141,7 @@ public abstract class EnjCommand {
                 return;
 
             if (!context.args.isEmpty()) {
-                for (EnjCommand subCommand : subCommands) {
+                for (MetaCommand subCommand : subCommands) {
                     if (!subCommand.aliases.contains(context.args.get(0).toLowerCase()))
                         continue;
 
@@ -163,7 +162,7 @@ public abstract class EnjCommand {
         }
     }
 
-    protected void addSubCommand(EnjCommand subCommand) {
+    protected void addSubCommand(MetaCommand subCommand) {
         this.subCommands.add(subCommand);
     }
 

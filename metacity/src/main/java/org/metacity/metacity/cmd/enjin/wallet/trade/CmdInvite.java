@@ -5,7 +5,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.cmd.enjin.arg.PlayerArgumentProcessor;
 import org.metacity.metacity.enums.Permission;
@@ -16,7 +16,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CmdInvite extends EnjCommand {
+public class CmdInvite extends MetaCommand {
 
     public CmdInvite(CmdTrade cmdTrade) {
         super(cmdTrade.bootstrap(), cmdTrade);

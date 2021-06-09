@@ -1,9 +1,6 @@
 package org.metacity.metacity.wallet;
 
 import com.enjin.sdk.models.balance.Balance;
-import org.metacity.metacity.Bootstrap;
-import org.metacity.metacity.EnjinCraft;
-import org.metacity.metacity.SpigotBootstrap;
 import org.metacity.metacity.util.TokenUtils;
 
 import java.util.ArrayList;
@@ -30,7 +27,7 @@ public class TokenWallet {
         } catch (IllegalArgumentException e) {
             return null;
         } catch (Exception e) {
-            log(e);
+            e.printStackTrace();
             return null;
         }
     }
@@ -41,7 +38,7 @@ public class TokenWallet {
         } catch (IllegalArgumentException e) {
             return null;
         } catch (Exception e) {
-            log(e);
+            e.printStackTrace();
             return null;
         }
     }
@@ -52,7 +49,7 @@ public class TokenWallet {
         } catch (IllegalArgumentException e) {
             return null;
         } catch (Exception e) {
-            log(e);
+            e.printStackTrace();
             return null;
         }
     }
@@ -63,7 +60,7 @@ public class TokenWallet {
         } catch (IllegalArgumentException e) {
             return null;
         } catch (Exception e) {
-            log(e);
+            e.printStackTrace();
             return null;
         }
     }
@@ -80,7 +77,7 @@ public class TokenWallet {
             balances.put(TokenUtils.createFullId(balance.id(), balance.index()), balance);
         } catch (IllegalArgumentException ignored) {
         } catch (Exception e) {
-            log(e);
+            e.printStackTrace();
         }
     }
 
@@ -94,12 +91,6 @@ public class TokenWallet {
 
     public void clear() {
         this.balances.clear();
-    }
-
-    private static void log(Exception e) {
-        Bootstrap bootstrap = EnjinCraft.bootstrap().orElse(null);
-        if (bootstrap instanceof SpigotBootstrap)
-            ((SpigotBootstrap) bootstrap).log(e);
     }
 
 }

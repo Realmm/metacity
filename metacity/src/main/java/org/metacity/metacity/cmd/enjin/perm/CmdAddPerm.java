@@ -2,7 +2,7 @@ package org.metacity.metacity.cmd.enjin.perm;
 
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.token.TokenManager;
@@ -10,9 +10,9 @@ import org.metacity.metacity.util.server.Translation;
 
 import java.util.List;
 
-public class CmdAddPerm extends EnjCommand {
+public class CmdAddPerm extends MetaCommand {
 
-    public CmdAddPerm(EnjCommand parent) {
+    public CmdAddPerm(MetaCommand parent) {
         super(parent);
         this.aliases.add("addperm");
         this.requiredArgs.add("id");

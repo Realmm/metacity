@@ -26,8 +26,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
-import org.metacity.metacity.EnjTokenView;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.token.MetaTokenView;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.enums.TargetPlayer;
 import org.metacity.metacity.enums.Trader;
 import org.metacity.metacity.player.MetaPlayer;
@@ -38,14 +38,15 @@ import org.metacity.metacity.util.UiUtils;
 import org.metacity.metacity.wallet.MutableBalance;
 import org.metacity.metacity.wallet.TokenWallet;
 import org.metacity.metacity.wallet.TokenWalletViewState;
+import org.metacity.util.Logger;
 
 import java.util.*;
 
-public class TradeView extends ChestMenu implements EnjTokenView {
+public class TradeView extends ChestMenu implements MetaTokenView {
 
     public static final int INV_WIDTH = 9;
 
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin;
 
     @Getter
     private final MetaPlayer viewer;
@@ -69,9 +70,9 @@ public class TradeView extends ChestMenu implements EnjTokenView {
     private final ItemStack readyItem = createReadyItemStack();
     private final ItemStack unreadyItem = createUnreadyItemStack();
 
-    public TradeView(SpigotBootstrap bootstrap, MetaPlayer viewer, MetaPlayer other, Trader traderType) {
+    public TradeView(MetaPlayer viewer, MetaPlayer other, Trader traderType) {
         super("Trade", 6);
-        this.bootstrap = bootstrap;
+        this.plugin = MetaCity.getInstance();
         this.viewer = viewer;
         this.other = other;
         this.traderType = traderType;
@@ -123,15 +124,15 @@ public class TradeView extends ChestMenu implements EnjTokenView {
                         otherView.tradeApproved = true;
 
                         if (traderType == Trader.INVITER)
-                            bootstrap.getTradeManager().createTrade(viewer, other, viewerOffer, otherOffer);
+                            plugin.getTradeManager().createTrade(viewer, other, viewerOffer, otherOffer);
                         else
-                            bootstrap.getTradeManager().createTrade(other, viewer, otherOffer, viewerOffer);
+                            plugin.getTradeManager().createTrade(other, viewer, otherOffer, viewerOffer);
 
                         closeMenu(p);
                     }
                 }
-            } catch (Exception ex) {
-                bootstrap.log(ex);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }, ClickType.LEFT, ClickType.RIGHT);
 
@@ -200,7 +201,7 @@ public class TradeView extends ChestMenu implements EnjTokenView {
 
     @Override
     public void validateInventory() {
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        TokenManager tokenManager = plugin.getTokenManager();
         InventoryView view = viewer.getBukkitPlayer().getOpenInventory();
 
         Dimension dimension = viewerItemsComponent.getDimension();
@@ -215,7 +216,7 @@ public class TradeView extends ChestMenu implements EnjTokenView {
                 } else if (!TokenUtils.isValidTokenItem(is)) {
                     view.setItem(slot, null);
                     updateSlotWithHandler(slot, is, null);
-                    bootstrap.debug(String.format("Removed corrupted token from %s's trade window", viewer.getBukkitPlayer().getDisplayName()));
+                    Logger.debug(String.format("Removed corrupted token from %s's trade window", viewer.getBukkitPlayer().getDisplayName()));
                     continue;
                 }
 
@@ -364,7 +365,7 @@ public class TradeView extends ChestMenu implements EnjTokenView {
         event.setCancelled(true);
 
         InventoryView view = viewer.getBukkitPlayer().getOpenInventory();
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        TokenManager tokenManager = plugin.getTokenManager();
         ItemStack  currItem  = event.getCurrentItem();
         TokenModel currModel = tokenManager.getToken(currItem);
         if (currItem == null || currModel == null)
@@ -406,7 +407,7 @@ public class TradeView extends ChestMenu implements EnjTokenView {
     private void moveToPlayerInventory(InventoryClickEvent event) {
         event.setCancelled(true);
 
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        TokenManager tokenManager = plugin.getTokenManager();
         PlayerInventory playerInventory = viewer.getBukkitPlayer().getInventory();
         ItemStack  currItem  = event.getCurrentItem();
         TokenModel currModel = tokenManager.getToken(currItem);

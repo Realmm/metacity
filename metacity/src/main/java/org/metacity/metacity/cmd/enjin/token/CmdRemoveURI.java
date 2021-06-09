@@ -4,7 +4,7 @@ package org.metacity.metacity.cmd.enjin.token;
 import org.metacity.metacity.SpigotBootstrap;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.token.TokenManager;
@@ -12,9 +12,9 @@ import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.util.StringUtils;
 import org.metacity.metacity.util.server.Translation;
 
-public class CmdRemoveURI extends EnjCommand {
+public class CmdRemoveURI extends MetaCommand {
 
-    public CmdRemoveURI(SpigotBootstrap bootstrap, EnjCommand parent) {
+    public CmdRemoveURI(SpigotBootstrap bootstrap, MetaCommand parent) {
         super(bootstrap, parent);
         this.aliases.add("removeuri");
         this.requiredArgs.add("id");

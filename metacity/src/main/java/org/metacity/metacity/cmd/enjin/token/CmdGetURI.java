@@ -8,7 +8,7 @@ import org.bukkit.command.CommandSender;
 import org.metacity.metacity.SpigotBootstrap;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.exceptions.GraphQLException;
@@ -18,9 +18,9 @@ import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.util.StringUtils;
 import org.metacity.metacity.util.server.Translation;
 
-public class CmdGetURI extends EnjCommand {
+public class CmdGetURI extends MetaCommand {
 
-    public CmdGetURI(SpigotBootstrap bootstrap, EnjCommand parent) {
+    public CmdGetURI(SpigotBootstrap bootstrap, MetaCommand parent) {
         super(bootstrap, parent);
         this.aliases.add("geturi");
         this.requiredArgs.add("id");

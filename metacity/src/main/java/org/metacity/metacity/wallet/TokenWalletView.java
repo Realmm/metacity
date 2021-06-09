@@ -21,8 +21,8 @@ import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.metacity.metacity.EnjTokenView;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.MetaCity;
+import org.metacity.metacity.token.MetaTokenView;
 import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.token.TokenManager;
 import org.metacity.metacity.token.TokenModel;
@@ -34,13 +34,13 @@ import org.metacity.metacity.util.server.Translation;
 import java.util.List;
 import java.util.Map;
 
-public class TokenWalletView extends ChestMenu implements EnjTokenView {
+public class TokenWalletView extends ChestMenu implements MetaTokenView {
 
-    public static final String WALLET_VIEW_NAME = "Enjin Wallet";
+    public static final String WALLET_VIEW_NAME = "MetaCity Wallet";
     public static final int WIDTH = 9;
     public static final Dimension INVENTORY_DIMENSION = new Dimension(WIDTH, 4);
 
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin;
     private final MetaPlayer owner;
     private final SimpleMenuComponent navigationComponent;
     private final SimpleMenuComponent inventoryViewComponent;
@@ -53,9 +53,9 @@ public class TokenWalletView extends ChestMenu implements EnjTokenView {
     private int currentNonFungiblePage = 0;
     protected SimplePagedComponent currentPagedComponent;
 
-    public TokenWalletView(SpigotBootstrap bootstrap, MetaPlayer owner) {
+    public TokenWalletView(MetaPlayer owner) {
         super(ChatColor.DARK_PURPLE + WALLET_VIEW_NAME, 6);
-        this.bootstrap = bootstrap;
+        this.plugin = MetaCity.getInstance();
         this.owner = owner;
         this.navigationComponent = new SimpleMenuComponent(new Dimension(WIDTH, 1));
         this.inventoryViewComponent = new SimpleMenuComponent(INVENTORY_DIMENSION);
@@ -146,11 +146,11 @@ public class TokenWalletView extends ChestMenu implements EnjTokenView {
         int index = 0;
         for (MutableBalance balance : balances) {
             String fullId = TokenUtils.createFullId(balance.id(), balance.index());
-            TokenModel tokenModel = bootstrap.getTokenManager().getToken(fullId);
+            TokenModel tokenModel = plugin.getTokenManager().getToken(fullId);
             boolean inDB = tokenModel != null;
 
             if (isNonfungible && tokenModel == null) {
-                tokenModel = bootstrap.getTokenManager().getToken(balance.id());
+                tokenModel = plugin.getTokenManager().getToken(balance.id());
                 inDB = false;
             }
 
@@ -195,7 +195,7 @@ public class TokenWalletView extends ChestMenu implements EnjTokenView {
     protected void drawInventory() {
         inventoryViewComponent.removeAllActions();
 
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        TokenManager tokenManager = plugin.getTokenManager();
 
         int currentPage = getCurrentPage();
         for (int y = 0; y < INVENTORY_DIMENSION.getHeight(); y++) {
@@ -318,7 +318,7 @@ public class TokenWalletView extends ChestMenu implements EnjTokenView {
             if (StringUtils.isEmpty(id) || StringUtils.isEmpty(index))
                 return;
 
-            MetaPlayer metaPlayer = bootstrap.getPlayerManager()
+            MetaPlayer metaPlayer = plugin.getPlayerManager()
                     .getPlayer((Player) event.getWhoClicked())
                     .orElse(null);
             if (metaPlayer == null)
@@ -343,7 +343,7 @@ public class TokenWalletView extends ChestMenu implements EnjTokenView {
             MutableBalance balance = metaPlayer.getTokenWallet().getBalance(id, index);
             balance.deposit(amount);
             is.setAmount(is.getAmount() - amount);
-            Bukkit.getScheduler().scheduleSyncDelayedTask(bootstrap.plugin(), () -> repopulate(metaPlayer.getBukkitPlayer()));
+            Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> repopulate(metaPlayer.getBukkitPlayer()));
         }
     }
 

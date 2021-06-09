@@ -3,7 +3,7 @@ package org.metacity.metacity.cmd.enjin.token;
 import org.bukkit.command.CommandSender;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.token.TokenManager;
@@ -13,9 +13,9 @@ import org.metacity.metacity.util.server.Translation;
 
 import java.util.Objects;
 
-public class CmdDelete extends EnjCommand {
+public class CmdDelete extends MetaCommand {
 
-    public CmdDelete(EnjCommand parent) {
+    public CmdDelete(MetaCommand parent) {
         super(parent);
         this.aliases.add("delete");
         this.requiredArgs.add("id");

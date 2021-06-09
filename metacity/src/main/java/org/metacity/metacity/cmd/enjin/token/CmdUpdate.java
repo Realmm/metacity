@@ -7,7 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.token.TokenManager;
@@ -17,9 +17,9 @@ import org.metacity.metacity.util.server.Translation;
 
 import java.util.Objects;
 
-public class CmdUpdate extends EnjCommand {
+public class CmdUpdate extends MetaCommand {
 
-    public CmdUpdate(EnjCommand parent) {
+    public CmdUpdate(MetaCommand parent) {
         super(parent);
         this.aliases.add("update");
         this.requiredArgs.add("id");

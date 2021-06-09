@@ -1,10 +1,10 @@
 package org.metacity.metacity.cmd.enjin.wallet;
 
 import org.bukkit.command.CommandSender;
-import org.metacity.metacity.cmd.enjin.CmdEnj;
+import org.metacity.metacity.cmd.enjin.CmdMeta;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.player.MetaPlayer;
@@ -16,9 +16,9 @@ import org.metacity.metacity.wallet.MutableBalance;
 
 import java.math.BigDecimal;
 
-public class CmdBalance extends EnjCommand {
+public class CmdBalance extends MetaCommand {
 
-    public CmdBalance(CmdEnj parent) {
+    public CmdBalance(CmdMeta parent) {
         super(parent);
         this.aliases.add("balance");
         this.aliases.add("bal");

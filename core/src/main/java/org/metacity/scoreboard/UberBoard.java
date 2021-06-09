@@ -2,110 +2,60 @@ package org.metacity.scoreboard;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.craftbukkit.libs.org.apache.commons.lang3.StringUtils;
 import org.bukkit.entity.Player;
-import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Team;
-import org.bukkit.util.StringUtil;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import javax.annotation.Nonnull;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
- * An UberBoard differs from an {@link RealmScoreboard} as it can handle
+ * An UberBoard differs from an {@link MetaScoreboard} as it can handle
  * more that just a side scoreboard, it can also handle name tags above players head and
  * in the tab list. It is also {@link Player} specific, so the boards are intended to be individual to the {@link Player}.
  */
-public class UberBoard extends RealmScoreboard {
+public class UberBoard {
 
     private String prefix;
     private boolean updateNametag = true, updateTablist = true;
-    private final Player p;
+    @Nonnull private final OfflinePlayer p;
+    private final MetaScoreboard scoreboard;
 
     private static final Map<UUID, UberBoard> boardMap = new HashMap<>();
 
-    /**
-     * Create a scoreboard with a certain title
-     * @param p The {@link Player} this scoreboard is to be set to
-     * @param title The title to set
-     */
-    private UberBoard(Player p, String title) {
-        super(title);
+    private UberBoard(@Nonnull OfflinePlayer p, MetaScoreboard scoreboard) {
         this.p = p;
+        this.scoreboard = scoreboard;
     }
 
     /**
-     * Create a scoreboard with a certain {@link LineExecution} title
-     * @param p The {@link Player} this scoreboard is to be set to
-     * @param executed The player to execute the {@link LineExecution}
-     * @param title The {@link LineExecution} title to set
+     * Create a scoreboard that also manages tablist name color
+     * @param p The {@link OfflinePlayer} this scoreboard is to be set to
+     * @param scoreboard The {@link MetaScoreboard} to set
      */
-    private UberBoard(Player p, Player executed, LineExecution title) {
-        super(executed, title);
-        this.p = p;
-    }
-
-    /**
-     * Create a scoreboard with a certain title and {@link LineExecution}'s
-     * @param p The {@link Player} this scoreboard is to be set to
-     * @param title The title to set
-     * @param lines The {@link LineExecution}'s to set
-     */
-    private UberBoard(Player p, String title, LineExecution... lines) {
-        super(title, lines);
-        this.p = p;
-    }
-
-    /**
-     * Create a scoreboard with a certain title and a list of {@link LineExecution}'s
-     * @param p The {@link Player} this scoreboard is to be set to
-     * @param title The title to set
-     * @param lines The {@link LineExecution}'s to set
-     */
-    private UberBoard(Player p, String title, List<LineExecution> lines) {
-        super(title, lines);
-        this.p = p;
-    }
-
-    public static UberBoard of(Player p, String title) {
-        UberBoard board = boardMap.getOrDefault(p.getUniqueId(), new UberBoard(p, title));
+    public static UberBoard of(@Nonnull OfflinePlayer p, MetaScoreboard scoreboard) {
+        UberBoard board = boardMap.getOrDefault(p.getUniqueId(), new UberBoard(p, scoreboard));
         boardMap.put(p.getUniqueId(), board);
         return board;
     }
 
-    public static UberBoard of(Player p, Player executed, LineExecution title) {
-        UberBoard board = boardMap.getOrDefault(p.getUniqueId(), new UberBoard(p, executed, title));
-        boardMap.put(p.getUniqueId(), board);
-        return board;
+    public MetaScoreboard scoreboard() {
+        return scoreboard;
     }
 
-    public static UberBoard of(Player p, String title, LineExecution... lines) {
-        UberBoard board = boardMap.getOrDefault(p.getUniqueId(), new UberBoard(p, title, lines));
-        boardMap.put(p.getUniqueId(), board);
-        return board;
-    }
-
-    public static UberBoard of(Player p, String title, List<LineExecution> lines) {
-        UberBoard board = boardMap.getOrDefault(p.getUniqueId(), new UberBoard(p, title, lines));
-        boardMap.put(p.getUniqueId(), board);
-        return board;
-    }
-
-    private Team getTeam(Player p) {
+    private Team getTeam(OfflinePlayer p) {
         String hash = String.valueOf(p.getUniqueId().hashCode());
 
-        Optional<Team> teamO = getBukkitScoreboard().getTeams()
+        Optional<Team> teamO = scoreboard.getBukkitScoreboard().getTeams()
                 .stream()
                 .filter(t -> t.getName().equalsIgnoreCase(hash))
                 .findFirst();
-        return teamO.orElseGet(() -> getBukkitScoreboard().registerNewTeam(hash));
+        return teamO.orElseGet(() -> scoreboard.getBukkitScoreboard().registerNewTeam(hash));
     }
 
     private String getTabNameColor() {
@@ -113,8 +63,10 @@ public class UberBoard extends RealmScoreboard {
     }
 
     private void updateNameTag() {
+        if (!p.isOnline()) return;
+        Player player = (Player) p;
         Team rankTeam = getTeam(p);
-        rankTeam.addEntry(p.getName());
+        rankTeam.addEntry(player.getName());
 
         Bukkit.getOnlinePlayers()
                 .stream()
@@ -160,8 +112,7 @@ public class UberBoard extends RealmScoreboard {
     }
 
     public Optional<String> getPrefix() {
-
-        return prefix == null ? Optional.empty() : Optional.of(prefix);
+        return Optional.ofNullable(prefix);
     }
 
     /**
@@ -202,7 +153,9 @@ public class UberBoard extends RealmScoreboard {
      * tab list
      */
     public void update() {
-        super.update(p);
+        if (!p.isOnline()) return;
+        Player player = (Player) p;
+        scoreboard.update(player);
         if (updateNametag) {
             updateNameTag();
         }
@@ -210,7 +163,7 @@ public class UberBoard extends RealmScoreboard {
             String color = ChatColor.WHITE.toString();
             if (getPrefix().isPresent()) color = getPrefix().get();
             String tabName = StringUtils.left(color + p.getName(), 16);
-            p.setPlayerListName(tabName);
+            player.setPlayerListName(tabName);
         }
     }
 

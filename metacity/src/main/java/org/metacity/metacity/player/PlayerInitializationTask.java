@@ -10,7 +10,8 @@ import com.enjin.sdk.models.user.CreateUser;
 import com.enjin.sdk.models.user.GetUsers;
 import com.enjin.sdk.models.user.User;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.Chain;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.exceptions.GraphQLException;
 import org.metacity.metacity.exceptions.NetworkException;
 
@@ -21,174 +22,67 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerInitializationTask extends BukkitRunnable {
 
-    public static final Long TASK_DELAY  = 1L;
-    public static final Long TASK_PERIOD = 20L;
+    private static final Long TASK_DELAY = 20L;
+    private static final Long TASK_PERIOD = 40L;
 
     private static final Map<UUID, PlayerInitializationTask> PLAYER_TASKS = new ConcurrentHashMap<>();
 
-    private final SpigotBootstrap bootstrap;
     private final MetaPlayer player;
 
     private boolean inProgress = false;
 
-    protected PlayerInitializationTask(SpigotBootstrap bootstrap, MetaPlayer player) {
-        this.bootstrap = bootstrap;
+    protected PlayerInitializationTask(MetaPlayer player) {
         this.player = player;
     }
 
     @Override
     public void run() {
-        if (inProgress || isCancelled())
-            return;
+        if (inProgress || isCancelled()) return;
 
         inProgress = true;
 
-        if (player == null
-                || player.getBukkitPlayer() == null
-                || !player.getBukkitPlayer().isOnline()) {
+        if (player == null) {
             cancel();
-        } else {
-            try {
-                if (!player.isUserLoaded())
-                    loadUser();
-
-                if (player.isUserLoaded() && !player.isIdentityLoaded())
-                    loadIdentity();
-                else if (player.isLoaded() && !isCancelled())
-                    cancel();
-            } catch (Exception ex) {
-                bootstrap.log(ex);
-            }
+            return;
         }
+
+        try {
+            Chain chain = MetaCity.getInstance().chain();
+            if (!player.isUserLoaded()) chain.updateUser(player, u -> {
+                player.setUser(u);
+
+                if (player.isUserLoaded() && !player.isIdentityLoaded()) {
+                    chain.updateIdentity(player, i -> {
+                        if (i != null) {
+                            player.setIdentity(i);
+                            cancel();
+                        }
+                    });
+                } else if (player.isLoaded() && !isCancelled()) cancel();
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        player.player().ifPresent(p -> {
+            player.board().update();
+            player.onJoin();
+        });
 
         inProgress = false;
     }
 
-    private void loadUser() {
-        User user = getUser(player.getBukkitPlayer().getUniqueId());
-        if (user != null)
-            player.loadUser(user);
-    }
+    public static void create(MetaPlayer p) {
+        cleanUp(p.uuid());
 
-    private void loadIdentity() {
-        Identity identity = getIdentity();
-        if (identity != null) {
-            // A new identity has been created
-            player.loadIdentity(identity);
-            cancel();
-        }
-    }
-
-    private User getUser(UUID playerUuid) {
-        User user = fetchExistingUser(playerUuid);
-        if (user == null)
-            user = createUser(playerUuid);
-
-        return user;
-    }
-
-    private User fetchExistingUser(UUID playerUuid) {
-        // Fetch the User for the Player in question
-        HttpResponse<GraphQLResponse<List<User>>> networkResponse = bootstrap.getTrustedPlatformClient()
-                                                                             .getUserService()
-                                                                             .getUsersSync(new GetUsers()
-                                                                                                   .name(playerUuid.toString())
-                                                                                                   .withUserIdentities()
-                                                                                                   .withLinkingCode()
-                                                                                                   .withLinkingCodeQr()
-                                                                                                   .withWallet());
-        if (!networkResponse.isSuccess())
-            throw new NetworkException(networkResponse.code());
-
-        GraphQLResponse<List<User>> graphQLResponse = networkResponse.body();
-        if (!graphQLResponse.isSuccess())
-            throw new GraphQLException(graphQLResponse.getErrors());
-
-        User user = null;
-        if (!graphQLResponse.getData().isEmpty())
-            user = graphQLResponse.getData().get(0);
-
-        return user;
-    }
-
-    private User createUser(UUID playerUuid) {
-        // Create the User for the Player in question
-        TrustedPlatformClient client = bootstrap.getTrustedPlatformClient();
-        HttpResponse<GraphQLResponse<User>> networkResponse = client
-                .getUserService().createUserSync(new CreateUser()
-                                                         .name(playerUuid.toString())
-                                                         .withUserIdentities()
-                                                         .withLinkingCode()
-                                                         .withLinkingCodeQr());
-        if (!networkResponse.isSuccess())
-            throw new NetworkException(networkResponse.code());
-
-        GraphQLResponse<User> graphQLResponse = networkResponse.body();
-        if (!graphQLResponse.isSuccess())
-            throw new GraphQLException(graphQLResponse.getErrors());
-
-        return graphQLResponse.getData();
-    }
-
-    private Identity getIdentity() {
-        Identity identity = null;
-
-        if (player.getIdentityId() == null) {
-            identity = createIdentity();
-        } else {
-            HttpResponse<GraphQLResponse<List<Identity>>> networkResponse;
-            networkResponse = bootstrap.getTrustedPlatformClient()
-                                       .getIdentityService()
-                                       .getIdentitiesSync(new GetIdentities()
-                                                                  .identityId(player.getIdentityId())
-                                                                  .withLinkingCode()
-                                                                  .withLinkingCodeQr()
-                                                                  .withWallet());
-            if (!networkResponse.isSuccess())
-                throw new NetworkException(networkResponse.code());
-
-            GraphQLResponse<List<Identity>> graphQLResponse = networkResponse.body();
-            if (!graphQLResponse.isSuccess())
-                throw new GraphQLException(graphQLResponse.getErrors());
-
-            if (!graphQLResponse.getData().isEmpty())
-                identity = graphQLResponse.getData().get(0);
-        }
-
-        return identity;
-    }
-
-    private Identity createIdentity() {
-        TrustedPlatformClient client = bootstrap.getTrustedPlatformClient();
-        // Create the Identity for the App ID and Player in question
-        HttpResponse<GraphQLResponse<Identity>> networkResponse = client.getIdentityService()
-                                                                        .createIdentitySync(new CreateIdentity()
-                                                                                                    .appId(client.getAppId())
-                                                                                                    .userId(player.getUserId())
-                                                                                                    .withLinkingCode()
-                                                                                                    .withLinkingCodeQr());
-        if (!networkResponse.isSuccess())
-            throw new NetworkException(networkResponse.code());
-
-        GraphQLResponse<Identity> graphQLResponse = networkResponse.body();
-        if (!graphQLResponse.isSuccess())
-            throw new GraphQLException(graphQLResponse.getErrors());
-
-        return graphQLResponse.getData();
-    }
-
-    public static void create(SpigotBootstrap bootstrap, MetaPlayer player) {
-        cleanUp(player.getBukkitPlayer().getUniqueId());
-
-        PlayerInitializationTask task = new PlayerInitializationTask(bootstrap, player);
+        PlayerInitializationTask task = new PlayerInitializationTask(p);
         // Note: TASK_PERIOD is measured in server ticks 20 ticks / second.
-        task.runTaskTimerAsynchronously(bootstrap.plugin(), TASK_DELAY, TASK_PERIOD);
+        task.runTaskTimer(MetaCity.getInstance(), TASK_DELAY, TASK_PERIOD);
     }
 
     public static void cleanUp(UUID playerUuid) {
         PlayerInitializationTask task = PLAYER_TASKS.remove(playerUuid);
-        if (task != null && !task.isCancelled())
-            task.cancel();
+        if (task != null && !task.isCancelled()) task.cancel();
     }
 
 }

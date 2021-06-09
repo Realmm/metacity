@@ -3,14 +3,14 @@ package org.metacity.metacity.cmd.enjin.token;
 import org.bukkit.command.CommandSender;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.token.TokenManager;
 import org.metacity.metacity.util.server.Translation;
 
-public class CmdImport extends EnjCommand {
+public class CmdImport extends MetaCommand {
 
-    public CmdImport(EnjCommand parent) {
+    public CmdImport(MetaCommand parent) {
         super(parent);
         this.aliases.add("import");
         this.requirements = CommandRequirements.builder()

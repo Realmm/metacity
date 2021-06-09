@@ -1,11 +1,12 @@
 package org.metacity.metacity.storage;
 
 import lombok.NonNull;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.enums.TradeState;
 import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.token.TokenPermission;
 import org.metacity.metacity.trade.TradeSession;
+import org.metacity.util.Logger;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -15,7 +16,7 @@ import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class Database {
+public class ChainDatabase {
 
     public static final String DB_FILE_NAME = "enjincraft.db";
     public static final String URL_FORMAT = "jdbc:sqlite:%s";
@@ -54,7 +55,7 @@ public class Database {
     public static final String TEMPLATE_GET_PENDING_TRADES = "trade/GetPending";
     public static final String TEMPLATE_GET_SESSION_REQ_ID = "trade/GetSessionFromRequestId";
 
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin = MetaCity.getInstance();
     private final File dbFile;
     private final Connection conn;
 
@@ -83,9 +84,8 @@ public class Database {
     private final PreparedStatement getPendingTrades;
     private final PreparedStatement getSessionReqId;
 
-    public Database(SpigotBootstrap bootstrap) throws SQLException, IOException {
-        this.bootstrap = bootstrap;
-        this.dbFile = new File(bootstrap.plugin().getDataFolder(), DB_FILE_NAME);
+    public ChainDatabase() throws SQLException, IOException {
+        this.dbFile = new File(plugin.getDataFolder(), DB_FILE_NAME);
         this.conn = DriverManager.getConnection(String.format(URL_FORMAT, this.dbFile.getCanonicalPath()));
 
         init();
@@ -147,16 +147,16 @@ public class Database {
                 try {
                     createToken.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
     }
 
     public int createTokenInstance(@NonNull TokenModel tokenModel) throws SQLException, NullPointerException {
-        String id          = tokenModel.getId();
-        String index       = tokenModel.getIndex();
-        String nbt         = tokenModel.getNbt();
+        String id = tokenModel.getId();
+        String index = tokenModel.getIndex();
+        String nbt = tokenModel.getNbt();
         String metadataURI = tokenModel.getMetadataURI();
         synchronized (createTokenInstance) {
             createTokenInstance.clearParameters();
@@ -172,7 +172,7 @@ public class Database {
                 try {
                     createTokenInstance.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -190,7 +190,7 @@ public class Database {
                 try {
                     deleteToken.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -208,7 +208,7 @@ public class Database {
                 try {
                     deleteTokenInstances.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -228,7 +228,7 @@ public class Database {
                 try {
                     deleteTokenInstance.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -263,7 +263,7 @@ public class Database {
                 try {
                     getToken.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -309,7 +309,7 @@ public class Database {
                 try {
                     updateToken.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -334,7 +334,7 @@ public class Database {
                 try {
                     updateTokenInstance.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -366,7 +366,7 @@ public class Database {
                     try {
                         addPermission.clearParameters();
                     } catch (SQLException e) {
-                        bootstrap.log(e);
+                        e.printStackTrace();
                     }
                 }
             }
@@ -406,7 +406,7 @@ public class Database {
                     try {
                         deletePermission.clearParameters();
                     } catch (SQLException e) {
-                        bootstrap.log(e);
+                        e.printStackTrace();
                     }
                 }
             }
@@ -442,7 +442,7 @@ public class Database {
                 try {
                     getPermissions.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -475,7 +475,7 @@ public class Database {
                 try {
                     getPermissionWorlds.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -514,7 +514,7 @@ public class Database {
                 try {
                     createTrade.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -539,7 +539,7 @@ public class Database {
                 try {
                     completeTrade.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -558,7 +558,7 @@ public class Database {
                 try {
                     tradeExecuted.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -578,7 +578,7 @@ public class Database {
                 try {
                     cancelTrade.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -616,14 +616,14 @@ public class Database {
                 try {
                     getSessionReqId.clearParameters();
                 } catch (SQLException e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
     }
 
     private String loadSqlFile(String template) throws IOException {
-        try (InputStream is = bootstrap.plugin().getResource(String.format(RESOURCE_FORMAT, template))) {
+        try (InputStream is = plugin.getResource(String.format(RESOURCE_FORMAT, template))) {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                 return br.lines().collect(Collectors.joining(System.lineSeparator()));
             }

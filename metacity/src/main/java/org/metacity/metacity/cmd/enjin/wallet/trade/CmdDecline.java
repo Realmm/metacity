@@ -3,7 +3,7 @@ package org.metacity.metacity.cmd.enjin.wallet.trade;
 import org.bukkit.entity.Player;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.cmd.enjin.arg.PlayerArgumentProcessor;
 import org.metacity.metacity.enums.Permission;
@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class CmdDecline extends EnjCommand {
+public class CmdDecline extends MetaCommand {
 
     public CmdDecline(CmdTrade cmdTrade) {
         super(cmdTrade.bootstrap(), cmdTrade);

@@ -4,26 +4,20 @@ import org.bukkit.scoreboard.Team;
 
 class ScoreboardTeam {
 
-    private final int index;
     private final Team team;
-    private final String entry;
+    private final Slot slot;
 
-    ScoreboardTeam(int index, Team team, String entry) {
-        this.index = index;
+    ScoreboardTeam(Team team, Slot slot) {
         this.team = team;
-        this.entry = entry;
+        this.slot = slot;
     }
 
-    int getIndex() {
-        return index;
+    Slot slot() {
+        return slot;
     }
 
-    Team getTeam() {
+    Team team() {
         return team;
-    }
-
-    String getEntry() {
-        return entry;
     }
 
 }

@@ -8,7 +8,8 @@ import com.enjin.sdk.models.request.TransactionState;
 import com.enjin.sdk.models.token.event.TokenEvent;
 import com.enjin.sdk.models.token.event.TokenEventType;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.metacity.metacity.SpigotBootstrap;
+import org.bukkit.util.Consumer;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.exceptions.GraphQLException;
 import org.metacity.metacity.exceptions.NetworkException;
 
@@ -17,12 +18,12 @@ import java.util.List;
 
 public class TradeUpdateTask extends BukkitRunnable {
 
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin;
     private final List<TradeSession> tradeSessions;
 
-    public TradeUpdateTask(SpigotBootstrap bootstrap) throws SQLException {
-        this.bootstrap = bootstrap;
-        this.tradeSessions = bootstrap.db().getPendingTrades();
+    public TradeUpdateTask() throws SQLException {
+        this.plugin = MetaCity.getInstance();
+        this.tradeSessions = plugin.db().getPendingTrades();
     }
 
     @Override
@@ -36,34 +37,23 @@ public class TradeUpdateTask extends BukkitRunnable {
 
             TradeSession session = tradeSessions.remove(0);
             if (session.isExpired()) {
-                bootstrap.getTradeManager().cancelTrade(session.getMostRecentRequestId());
+                plugin.getTradeManager().cancelTrade(session.getMostRecentRequestId());
                 return;
             }
 
-            List<Transaction> data = getMostRecentTransaction(session);
-            if (data.isEmpty())
-                return;
+            getMostRecentTransaction(session, data -> {
+                if (data.isEmpty()) return;
 
-            processTransaction(session, data.get(0));
-        } catch (Exception ex) {
-            bootstrap.log(ex);
+                processTransaction(session, data.get(0));
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    private List<Transaction> getMostRecentTransaction(TradeSession session) {
-        HttpResponse<GraphQLResponse<List<Transaction>>> networkResponse = bootstrap.getTrustedPlatformClient()
-                .getRequestService().getRequestsSync(new GetRequests()
-                        .requestId(session.getMostRecentRequestId())
-                        .withEvents()
-                        .withState());
-        if (!networkResponse.isSuccess())
-            throw new NetworkException(networkResponse.code());
-
-        GraphQLResponse<List<Transaction>> graphQLResponse = networkResponse.body();
-        if (!graphQLResponse.isSuccess())
-            throw new GraphQLException(graphQLResponse.getErrors());
-
-        return graphQLResponse.getData();
+    private void getMostRecentTransaction(TradeSession session, Consumer<List<Transaction>> consumer) {
+        plugin.chain().getMostRecentTransaction(session, consumer);
     }
 
     private TokenEvent getTokenEvent(Transaction transaction) {
@@ -84,7 +74,7 @@ public class TradeUpdateTask extends BukkitRunnable {
     private void processTransaction(TradeSession session, Transaction transaction) {
         TransactionState state = transaction.getState();
         if (state == TransactionState.CANCELED_USER || state == TransactionState.CANCELED_PLATFORM) {
-            bootstrap.getTradeManager().cancelTrade(transaction.getId());
+            plugin.getTradeManager().cancelTrade(transaction.getId());
             return;
         } else if (state != TransactionState.EXECUTED) {
             return;
@@ -96,10 +86,10 @@ public class TradeUpdateTask extends BukkitRunnable {
                 : event.getEvent();
         switch (type) {
             case CREATE_TRADE:
-                bootstrap.getTradeManager().sendCompleteRequest(session, event.getParam1());
+                plugin.getTradeManager().sendCompleteRequest(session, event.getParam1());
                 break;
             case COMPLETE_TRADE:
-                bootstrap.getTradeManager().completeTrade(session);
+                plugin.getTradeManager().completeTrade(session);
                 break;
             default:
                 break;

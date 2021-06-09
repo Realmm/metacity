@@ -16,7 +16,7 @@ import org.bukkit.map.MapRenderer;
 import org.bukkit.map.MapView;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.player.MetaPlayer;
@@ -27,9 +27,9 @@ import java.awt.*;
 import java.util.Map;
 import java.util.Objects;
 
-public class CmdQr extends EnjCommand {
+public class CmdQr extends MetaCommand {
 
-    public CmdQr(EnjCommand parent) {
+    public CmdQr(MetaCommand parent) {
         super(parent);
         this.aliases.add("qr");
         this.requirements = CommandRequirements.builder()

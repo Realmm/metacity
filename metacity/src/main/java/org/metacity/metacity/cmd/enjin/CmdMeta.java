@@ -24,13 +24,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class CmdEnj extends EnjCommand implements CommandExecutor, TabCompleter {
+public class CmdMeta extends MetaCommand implements CommandExecutor, TabCompleter {
 
     private final CmdHelp cmdHelp;
 
-    public CmdEnj(SpigotBootstrap bootstrap) {
+    public CmdMeta(SpigotBootstrap bootstrap) {
         super(bootstrap);
-        this.aliases.add("enj");
+        this.aliases.add("meta");
         this.addSubCommand(new CmdBalance(this));
         this.addSubCommand(new CmdDevSend(this));
         this.addSubCommand(this.cmdHelp = new CmdHelp(this));

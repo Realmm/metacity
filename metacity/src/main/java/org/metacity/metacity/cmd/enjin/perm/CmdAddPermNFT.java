@@ -2,7 +2,7 @@ package org.metacity.metacity.cmd.enjin.perm;
 
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.token.TokenManager;
@@ -12,9 +12,9 @@ import org.metacity.metacity.util.server.Translation;
 
 import java.util.List;
 
-public class CmdAddPermNFT extends EnjCommand {
+public class CmdAddPermNFT extends MetaCommand {
 
-    public CmdAddPermNFT(EnjCommand parent) {
+    public CmdAddPermNFT(MetaCommand parent) {
         super(parent);
         this.aliases.add("addpermnft");
         this.requiredArgs.add("id");

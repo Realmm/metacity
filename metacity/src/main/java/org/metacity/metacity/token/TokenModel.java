@@ -16,15 +16,15 @@ import org.bukkit.ChatColor;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.metacity.metacity.Bootstrap;
-import org.metacity.metacity.EnjinCraft;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.util.StringUtils;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.wallet.TokenWalletViewState;
+import org.metacity.util.Logger;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -39,8 +39,8 @@ import java.util.stream.Collectors;
 @ToString
 public class TokenModel {
 
-    public static final String NBT_ID          = "enjinTokenID";
-    public static final String NBT_INDEX       = "enjinTokenIndex";
+    public static final String NBT_ID = "enjinTokenID";
+    public static final String NBT_INDEX = "enjinTokenIndex";
     public static final String NBT_NONFUNGIBLE = "enjinTokenNF";
 
     @Getter
@@ -85,11 +85,11 @@ public class TokenModel {
     /**
      * Secondary constructor used in earlier versions of the plugin.
      *
-     * @since 1.0
-     * @param id the token id
-     * @param alternateId the alternate id to be used by the token manager
-     * @param nbt the NBT of the item stack
+     * @param id                    the token id
+     * @param alternateId           the alternate id to be used by the token manager
+     * @param nbt                   the NBT of the item stack
      * @param assignablePermissions the list of permissions
+     * @since 1.0
      */
     public TokenModel(@NonNull String id,
                       String alternateId,
@@ -108,20 +108,20 @@ public class TokenModel {
     /**
      * Primary constructor for token models.
      *
-     * @since 1.1
-     * @param id the token id
-     * @param index the token index
-     * @param nonfungible the fungible state
-     *                    <p>
-     *                        True for non-fungible, false for fungible.
-     *                    </p>
-     * @param alternateId the alternate id to be used by the token manager
-     * @param nbt the NBT of the item stack
+     * @param id                    the token id
+     * @param index                 the token index
+     * @param nonfungible           the fungible state
+     *                              <p>
+     *                              True for non-fungible, false for fungible.
+     *                              </p>
+     * @param alternateId           the alternate id to be used by the token manager
+     * @param nbt                   the NBT of the item stack
      * @param assignablePermissions the list of permissions
-     * @param metadataURI the metadata uri from the platform
-     * @param walletViewState the view state in the token wallet
+     * @param metadataURI           the metadata uri from the platform
+     * @param walletViewState       the view state in the token wallet
      * @throws IllegalArgumentException if the id or index are invalid
-     * @throws IllegalStateException if is fungible with a non-null, non-base index
+     * @throws IllegalStateException    if is fungible with a non-null, non-base index
+     * @since 1.1
      */
     @Builder
     public TokenModel(@NonNull String id,
@@ -164,9 +164,9 @@ public class TokenModel {
     /**
      * Constructor to be used when getting a token from a database.
      *
-     * @since 1.1
      * @param rs the result set
      * @throws SQLException if an exception occurs when processing the result set
+     * @since 1.1
      */
     public TokenModel(ResultSet rs) throws SQLException {
         this(rs.getString("token_id"),
@@ -199,18 +199,17 @@ public class TokenModel {
             if (metadataURI == null)
                 return;
 
-            Bootstrap bootstrap = EnjinCraft.bootstrap().orElse(null);
-
+            MetaCity plugin = MetaCity.getInstance();
             /* The URI is expected to conform to the ERC-1155 Metadata JSON Schema as outlined in:
              * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1155.md#erc-1155-metadata-uri-json-schema.
              */
-            boolean replaceIdArg    = metadataURI.contains("{id}");
+            boolean replaceIdArg = metadataURI.contains("{id}");
             boolean replaceIndexArg = metadataURI.contains("{index}");
             boolean isValidURI = !metadataURI.isEmpty()
                     && metadataURI.endsWith(TokenManager.JSON_EXT)
                     && !(!replaceIdArg && replaceIndexArg);
-            if (bootstrap instanceof SpigotBootstrap && !isValidURI)
-                ((SpigotBootstrap) bootstrap).debug(String.format("Invalid metadata URI found on token %s", getFullId()));
+            if (!isValidURI)
+                Logger.debug(String.format("Invalid metadata URI found on token %s", getFullId()));
 
             if (!isValidURI && isNonFungibleInstance()) { // Is non-fungible
                 loadDefaultName();
@@ -233,28 +232,25 @@ public class TokenModel {
                     nameFromURI = jsonObject.get("name").getAsString();
                 }
             } catch (FileNotFoundException e) {
-                if (bootstrap instanceof SpigotBootstrap) {
-                    String token = isNonFungibleInstance()
-                            ? String.format("%s #%d", id, TokenUtils.convertIndexToLong(index))
-                            : id;
-                    ((SpigotBootstrap) bootstrap).debug(String.format("Could not find file \"%s\" when loading metadata for token %s",
-                            metadataURI,
-                            token));
-                }
+                String token = isNonFungibleInstance()
+                        ? String.format("%s #%d", id, TokenUtils.convertIndexToLong(index))
+                        : id;
+                Logger.debug(String.format("Could not find file \"%s\" when loading metadata for token %s",
+                        metadataURI,
+                        token));
 
                 loadDefaultName();
             } catch (Exception e) {
-                if (bootstrap instanceof SpigotBootstrap)
-                    ((SpigotBootstrap) bootstrap).log(e);
+                e.printStackTrace();
             }
         }
     }
 
     private void loadDefaultName() {
-        Bootstrap bootstrap = EnjinCraft.bootstrap().orElse(null);
-        TokenManager tokenManager = bootstrap == null
+        MetaCity plugin = MetaCity.getInstance();
+        TokenManager tokenManager = plugin == null
                 ? null
-                : bootstrap.getTokenManager();
+                : plugin.getTokenManager();
         TokenModel baseModel = tokenManager == null
                 ? null
                 : tokenManager.getToken(id);
@@ -264,8 +260,8 @@ public class TokenModel {
     }
 
     protected ItemStack addDataToLore(List<String> data) {
-        ItemStack is   = nbtItem.getItem().clone();
-        ItemMeta  meta = is.getItemMeta();
+        ItemStack is = nbtItem.getItem().clone();
+        ItemMeta meta = is.getItemMeta();
         if (meta == null || data.isEmpty())
             return is;
 
@@ -359,17 +355,17 @@ public class TokenModel {
 
     @Nullable
     public ItemStack getWalletViewItemStack() {
-        ItemStack is   = getItemStack();
+        ItemStack is = getItemStack();
         if (is == null)
             return null;
 
-        ItemMeta  meta = is.getItemMeta();
+        ItemMeta meta = is.getItemMeta();
         if (meta == null)
             return is;
 
         List<String> data = new ArrayList<>();
 
-        String name  = getName();
+        String name = getName();
         if (!StringUtils.isEmpty(name))
             data.add(name);
         String state = getWalletViewString();
@@ -478,7 +474,7 @@ public class TokenModel {
         Map<String, Set<String>> permissionMap = new HashMap<>();
 
         for (TokenPermission permission : assignablePermissions) {
-            String      perm   = permission.getPermission();
+            String perm = permission.getPermission();
             Set<String> worlds = permission.getWorlds();
 
             if (permission.isGlobal())
@@ -502,19 +498,14 @@ public class TokenModel {
     }
 
     public String getName() {
-        Bootstrap bootstrap = EnjinCraft.bootstrap().orElse(null);
-        if (bootstrap != null) {
-            String id = StringUtils.isEmpty(nameFromURI)
-                    ? this.id
-                    : nameFromURI;
-            String name = nonfungible
-                    ? String.format("%s #%d", id, TokenUtils.convertIndexToLong(index))
-                    : String.format("%s", id);
+        String id = StringUtils.isEmpty(nameFromURI)
+                ? this.id
+                : nameFromURI;
+        String name = nonfungible
+                ? String.format("%s #%d", id, TokenUtils.convertIndexToLong(index))
+                : String.format("%s", id);
 
-            return ChatColor.GRAY + name;
-        }
-
-        return null;
+        return ChatColor.GRAY + name;
     }
 
     public String getDisplayName() {
@@ -545,10 +536,7 @@ public class TokenModel {
         } catch (NullPointerException e) {
             return null;
         } catch (Exception e) {
-            Bootstrap bootstrap = EnjinCraft.bootstrap().orElse(null);
-            if (bootstrap instanceof SpigotBootstrap)
-                ((SpigotBootstrap) bootstrap).log(e);
-
+            e.printStackTrace();
             return null;
         }
     }

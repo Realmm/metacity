@@ -3,7 +3,7 @@ package org.metacity.metacity.cmd.enjin.token;
 
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.cmd.enjin.perm.CmdAddPerm;
 import org.metacity.metacity.cmd.enjin.perm.CmdAddPermNFT;
@@ -12,9 +12,9 @@ import org.metacity.metacity.cmd.enjin.perm.CmdRevokePermNFT;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.util.server.Translation;
 
-public class CmdToken extends EnjCommand {
+public class CmdToken extends MetaCommand {
 
-    public CmdToken(EnjCommand parent) {
+    public CmdToken(MetaCommand parent) {
         super(parent);
         this.aliases.add("token");
         this.requiredArgs.add("operation");

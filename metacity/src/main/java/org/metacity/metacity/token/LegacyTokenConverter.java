@@ -8,7 +8,7 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.MetaCity;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,12 +33,12 @@ public class LegacyTokenConverter {
     private final Gson gson = new GsonBuilder()
             .registerTypeAdapter(TokenPermission.class, new TokenPermission.TokenPermissionDeserializer())
             .create();
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin;
     private final File file;
 
-    public LegacyTokenConverter(SpigotBootstrap bootstrap) {
-        this.bootstrap = bootstrap;
-        this.file = new File(bootstrap.plugin().getDataFolder(), FILE_NAME);
+    public LegacyTokenConverter() {
+        this.plugin = MetaCity.getInstance();
+        this.file = new File(plugin.getDataFolder(), FILE_NAME);
     }
 
     public void process() {
@@ -47,7 +47,7 @@ public class LegacyTokenConverter {
     }
 
     private void processTokenDir() {
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        TokenManager tokenManager = plugin.getTokenManager();
 
         File dir = tokenManager.getDir();
         if (!dir.exists())
@@ -64,7 +64,7 @@ public class LegacyTokenConverter {
             try (InputStreamReader in = new InputStreamReader(new FileInputStream(file), TokenManager.CHARSET)) {
                 tokenManager.saveToken(gson.fromJson(in, TokenModel.class));
             } catch (Exception e) {
-                bootstrap.log(e);
+                e.printStackTrace();
             } finally {
                 try {
                     if (!createBackup(file))
@@ -72,7 +72,7 @@ public class LegacyTokenConverter {
                                 file.getParent(),
                                 file.getName()));
                 } catch (Exception e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -95,7 +95,7 @@ public class LegacyTokenConverter {
             if (!element.isJsonObject())
                 return;
 
-            TokenManager tokenManager = bootstrap.getTokenManager();
+            TokenManager tokenManager = plugin.getTokenManager();
             Map<String, JsonObject> tokens = new HashMap<>();
 
             // Readies the data for conversion
@@ -113,19 +113,19 @@ public class LegacyTokenConverter {
 
             convert(tokens);
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
         } finally {
             try {
                 if (!createBackup(file))
                     throw new Exception(String.format("Unable to setup legacy tokens backup file in \"%s\"", file.getParent()));
             } catch (Exception e) {
-                bootstrap.log(e);
+                e.printStackTrace();
             }
         }
     }
 
     private void convert(Map<String, JsonObject> tokens) {
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        TokenManager tokenManager = plugin.getTokenManager();
 
         for (Map.Entry<String, JsonObject> entry : tokens.entrySet()) {
             String tokenId = entry.getKey();

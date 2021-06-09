@@ -17,21 +17,22 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.inventory.*;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.util.MaterialUtils;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.wallet.MutableBalance;
 import org.metacity.metacity.wallet.TokenWallet;
+import org.metacity.util.Logger;
 
 import java.util.Map;
 
 public class TokenItemListener implements Listener {
 
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin;
 
-    public TokenItemListener(SpigotBootstrap bootstrap) {
-        this.bootstrap = bootstrap;
+    public TokenItemListener() {
+        this.plugin = MetaCity.getInstance();
     }
 
     @EventHandler
@@ -40,7 +41,7 @@ public class TokenItemListener implements Listener {
             return;
 
         try {
-            MetaPlayer metaPlayer = bootstrap.getPlayerManager()
+            MetaPlayer metaPlayer = plugin.getPlayerManager()
                     .getPlayer(event.getEntity())
                     .orElse(null);
             if (metaPlayer == null)
@@ -53,7 +54,7 @@ public class TokenItemListener implements Listener {
                     continue;
                 } else if (!TokenUtils.isValidTokenItem(is)) {
                     is.setAmount(0);
-                    bootstrap.debug(String.format("Removed corrupted token from %s when they died", event.getEntity().getDisplayName()));
+                    Logger.debug(String.format("Removed corrupted token from %s when they died", event.getEntity().getDisplayName()));
                     continue;
                 }
 
@@ -62,8 +63,8 @@ public class TokenItemListener implements Listener {
                 balance.deposit(is.getAmount());
                 is.setAmount(0);
             }
-        } catch (Exception ex) {
-            bootstrap.log(ex);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -101,23 +102,23 @@ public class TokenItemListener implements Listener {
             return;
         } else if (!TokenUtils.isValidTokenItem(is)) {
             is.setAmount(0);
-            bootstrap.debug(String.format("Removed corrupted token when %s dropped it", event.getPlayer().getDisplayName()));
+            Logger.debug(String.format("Removed corrupted token when %s dropped it", event.getPlayer().getDisplayName()));
             return;
         }
 
-        MetaPlayer metaPlayer = bootstrap.getPlayerManager()
+        MetaPlayer metaPlayer = plugin.getPlayerManager()
                 .getPlayer(event.getPlayer())
                 .orElse(null);
         if (metaPlayer == null) {
             is.setAmount(0);
-            bootstrap.debug(String.format("Removed token from non-Enjin player when %s dropped it", event.getPlayer().getDisplayName()));
+            Logger.debug(String.format("Removed token from non-Enjin player when %s dropped it", event.getPlayer().getDisplayName()));
             return;
         }
 
         TokenWallet wallet = metaPlayer.getTokenWallet();
         if (wallet == null) {
             is.setAmount(0);
-            bootstrap.debug(String.format("Removed token from unlinked Enjin player when %s dropped it", event.getPlayer().getDisplayName()));
+            Logger.debug(String.format("Removed token from unlinked Enjin player when %s dropped it", event.getPlayer().getDisplayName()));
             return;
         }
 
@@ -149,7 +150,7 @@ public class TokenItemListener implements Listener {
                 balance.deposit(is.getAmount());
                 return;
             } catch (Exception e) {
-                bootstrap.log(e);
+                e.printStackTrace();
                 return;
             }
         }

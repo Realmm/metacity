@@ -16,21 +16,17 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.*;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.util.QrUtils;
 
 import java.util.Map;
 
 public class QrItemListener implements Listener {
 
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin;
 
-    private QrItemListener() {
-        throw new IllegalStateException();
-    }
-
-    public QrItemListener(@NonNull SpigotBootstrap bootstrap) throws NullPointerException {
-        this.bootstrap = bootstrap;
+    public QrItemListener() {
+        this.plugin = MetaCity.getInstance();
     }
 
     @EventHandler

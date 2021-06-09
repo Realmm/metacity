@@ -4,7 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.player.MetaPlayer;
@@ -12,9 +12,9 @@ import org.metacity.metacity.util.server.Translation;
 
 import java.util.Objects;
 
-public class CmdUnlink extends EnjCommand {
+public class CmdUnlink extends MetaCommand {
 
-    public CmdUnlink(EnjCommand parent) {
+    public CmdUnlink(MetaCommand parent) {
         super(parent);
         this.aliases.add("unlink");
         this.requirements = CommandRequirements.builder()

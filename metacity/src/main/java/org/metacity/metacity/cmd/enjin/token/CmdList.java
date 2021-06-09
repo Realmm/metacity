@@ -4,7 +4,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.token.TokenManager;
@@ -15,9 +15,9 @@ import org.metacity.metacity.util.server.Translation;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class CmdList extends EnjCommand {
+public class CmdList extends MetaCommand {
 
-    public CmdList(EnjCommand parent) {
+    public CmdList(MetaCommand parent) {
         super(parent);
         this.aliases.add("list");
         this.optionalArgs.add("id");

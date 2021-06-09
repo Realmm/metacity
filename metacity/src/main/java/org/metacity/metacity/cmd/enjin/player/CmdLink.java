@@ -5,7 +5,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.player.MetaPlayer;
@@ -14,9 +14,9 @@ import org.metacity.metacity.util.server.Translation;
 
 import java.util.Objects;
 
-public class CmdLink extends EnjCommand {
+public class CmdLink extends MetaCommand {
 
-    public CmdLink(EnjCommand parent) {
+    public CmdLink(MetaCommand parent) {
         super(parent);
         this.aliases.add("link");
         this.requirements = CommandRequirements.builder()

@@ -8,8 +8,8 @@ depend: [Core]
 api-version: 1.16
 
 commands:
-  enj:
-    description: Reference command for EnjinCraft.
+  meta:
+    description: Reference command for MetaCity.
 permissions:
   enjincraft.*:
     default: op

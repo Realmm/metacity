@@ -9,7 +9,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.cmd.enjin.arg.PlayerArgumentProcessor;
 import org.metacity.metacity.cmd.enjin.arg.TokenDefinitionArgumentProcessor;
@@ -25,12 +25,12 @@ import org.metacity.metacity.util.server.Translation;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CmdDevSend extends EnjCommand {
+public class CmdDevSend extends MetaCommand {
 
     public static final int    ETH_ADDRESS_LENGTH = 42;
     public static final String ETH_ADDRESS_PREFIX = "0x";
 
-    public CmdDevSend(EnjCommand parent) {
+    public CmdDevSend(MetaCommand parent) {
         super(parent);
         this.aliases.add("devsend");
         this.requiredArgs.add("player|address");

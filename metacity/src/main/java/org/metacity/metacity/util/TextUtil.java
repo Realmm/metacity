@@ -22,12 +22,4 @@ public class TextUtil {
         return builder.toString();
     }
 
-//    public static String colorize(char prefix, String text) {
-//        return ChatColor.translateAlternateColorCodes(prefix, text);
-//    }
-//
-//    public static String colorize(String text) {
-//        return colorize('&', text);
-//    }
-
 }

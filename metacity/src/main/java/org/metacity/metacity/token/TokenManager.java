@@ -1,10 +1,5 @@
 package org.metacity.metacity.token;
 
-import com.enjin.sdk.TrustedPlatformClient;
-import com.enjin.sdk.graphql.GraphQLResponse;
-import com.enjin.sdk.models.token.GetToken;
-import com.enjin.sdk.models.token.Token;
-import com.enjin.sdk.services.notification.NotificationsService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import lombok.AccessLevel;
@@ -13,16 +8,17 @@ import lombok.NonNull;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.exceptions.GraphQLException;
 import org.metacity.metacity.exceptions.NetworkException;
 import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.player.PlayerManager;
-import org.metacity.metacity.storage.Database;
+import org.metacity.metacity.storage.ChainDatabase;
 import org.metacity.metacity.util.StringUtils;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.MetaConfig;
 import org.metacity.metacity.wallet.TokenWalletViewState;
+import org.metacity.util.Logger;
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -79,7 +75,7 @@ public class TokenManager {
             .setPrettyPrinting()
             .create();
 
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin;
     @Getter(value = AccessLevel.PACKAGE, onMethod_ = {@NotNull})
     private final File dir;
     private final File exportDir;
@@ -88,12 +84,12 @@ public class TokenManager {
     private final Map<String, String> alternateIds = new HashMap<>();
     private final TokenPermissionGraph permGraph = new TokenPermissionGraph();
 
-    public TokenManager(SpigotBootstrap bootstrap) {
-        this(bootstrap, bootstrap.plugin().getDataFolder());
+    public TokenManager() {
+        this(MetaCity.getInstance().getDataFolder());
     }
 
-    public TokenManager(SpigotBootstrap bootstrap, File dir) {
-        this.bootstrap = bootstrap;
+    public TokenManager(File dir) {
+        this.plugin = MetaCity.getInstance();
         this.dir = new File(dir, TOKENS_FOLDER);
         this.exportDir = new File(dir, EXPORT_FOLDER);
         this.importDir = new File(dir, IMPORT_FOLDER);
@@ -109,7 +105,7 @@ public class TokenManager {
 
         // Load tokens from db
         try {
-            List<TokenModel> tokens = bootstrap.db().getAllTokens();
+            List<TokenModel> tokens = plugin.db().getAllTokens();
             List<TokenModel> nftInstances = new ArrayList<>();
             List<String> permissionBlacklist = MetaConfig.PERMISSION_BLACKLIST;
 
@@ -129,7 +125,7 @@ public class TokenManager {
 
                     cacheAndSubscribe(tokenModel);
                 } catch (Exception e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             });
 
@@ -148,15 +144,15 @@ public class TokenManager {
 
                     cacheAndSubscribe(tokenModel);
                 } catch (Exception e) {
-                    bootstrap.log(e);
+                    e.printStackTrace();
                 }
             });
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
         }
 
         // Process legacy token configuration files
-        new LegacyTokenConverter(bootstrap).process();
+        new LegacyTokenConverter().process();
     }
 
     public int saveToken(@NonNull TokenModel tokenModel) throws NullPointerException {
@@ -194,7 +190,7 @@ public class TokenManager {
         if (status == TOKEN_CREATE_SUCCESS) {
             cacheAndSubscribe(tokenModel);
 
-            PlayerManager playerManager = bootstrap.getPlayerManager();
+            PlayerManager playerManager = plugin.getPlayerManager();
             if (playerManager != null) {
                 playerManager.getPlayers()
                         .values()
@@ -209,7 +205,7 @@ public class TokenManager {
     }
 
     private int saveTokenToDatabase(TokenModel tokenModel) {
-        Database db = bootstrap.db();
+        ChainDatabase db = plugin.db();
         try {
             if (tokenModel.isBaseModel())
                 db.createToken(tokenModel);
@@ -217,7 +213,7 @@ public class TokenManager {
             db.createTokenInstance(tokenModel);
             tokenModel.load();
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return TOKEN_CREATE_FAILED;
         }
 
@@ -233,7 +229,7 @@ public class TokenManager {
             if (isValidAlternateId(tokenModel.getAlternateId()))
                 alternateIds.put(tokenModel.getAlternateId(), tokenModel.getFullId());
             else
-                bootstrap.debug(String.format("Invalid alternate id for token \"%s\"", tokenModel.getId()));
+                Logger.debug(String.format("Invalid alternate id for token \"%s\"", tokenModel.getId()));
         }
     }
 
@@ -262,7 +258,7 @@ public class TokenManager {
     }
 
     private int updateTokenConfDatabase(TokenModel tokenModel) {
-        Database db = bootstrap.db();
+        ChainDatabase db = plugin.db();
         try {
             if (tokenModel.isBaseModel())
                 db.updateToken(tokenModel);
@@ -270,7 +266,7 @@ public class TokenManager {
             db.updateTokenInstance(tokenModel);
             tokenModel.load();
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return TOKEN_UPDATE_FAILED;
         }
 
@@ -278,7 +274,7 @@ public class TokenManager {
     }
 
     private void updateTokenPermissionsDatabase(TokenModel tokenModel) throws SQLException {
-        Database db = bootstrap.db();
+        ChainDatabase db = plugin.db();
         String id    = tokenModel.getId();
         String index = tokenModel.getIndex();
         List<TokenPermission> dbPermissions;
@@ -309,7 +305,7 @@ public class TokenManager {
     }
 
     private void updateTokenOnPlayers(String fullId) {
-        PlayerManager playerManager = bootstrap.getPlayerManager();
+        PlayerManager playerManager = plugin.getPlayerManager();
         if (playerManager == null)
             return;
 
@@ -363,25 +359,7 @@ public class TokenManager {
     }
 
     public void updateMetadataURI(String id) throws GraphQLException, NetworkException {
-        TokenModel tokenModel = getToken(id);
-        if (tokenModel == null)
-            return;
-
-        TrustedPlatformClient client = bootstrap.getTrustedPlatformClient();
-        client.getTokenService().getTokenAsync(new GetToken()
-                        .tokenId(tokenModel.getId())
-                        .withItemUri(),
-                networkResponse -> {
-                    if (!networkResponse.isSuccess())
-                        throw new NetworkException(networkResponse.code());
-
-                    GraphQLResponse<Token> graphQLResponse = networkResponse.body();
-                    if (!graphQLResponse.isSuccess())
-                        throw new GraphQLException(graphQLResponse.getErrors());
-
-                    String metadataURI = graphQLResponse.getData().getItemURI();
-                    updateMetadataURI(tokenModel.getId(), metadataURI);
-        });
+        plugin.chain().updateMetadataURI(id);
     }
 
     private void setNameFromURIFromBase(TokenModel tokenModel) {
@@ -426,7 +404,7 @@ public class TokenManager {
         if (status == TOKEN_UPDATE_SUCCESS) {
             updateNonfungibleInstances(baseModel);
 
-            bootstrap.getPlayerManager()
+            plugin.getPlayerManager()
                     .getPlayers()
                     .values()
                     .forEach(MetaPlayer::validateInventory);
@@ -468,7 +446,7 @@ public class TokenManager {
             tokenModel.setMarkedForDeletion(true);
             uncacheAndUnsubscribe(tokenModel);
 
-            PlayerManager playerManager = bootstrap.getPlayerManager();
+            PlayerManager playerManager = plugin.getPlayerManager();
             if (playerManager != null) {
                 playerManager.getPlayers()
                         .values()
@@ -486,15 +464,15 @@ public class TokenManager {
         try {
             if (tokenModel.isBaseModel()) {
                 if (tokenModel.isNonfungible()) {
-                    bootstrap.db().deleteTokenInstances(tokenModel.getId());
+                    plugin.db().deleteTokenInstances(tokenModel.getId());
                 }
 
-                bootstrap.db().deleteToken(tokenModel.getId());
+                plugin.db().deleteToken(tokenModel.getId());
             } else {
-                bootstrap.db().deleteTokenInstance(tokenModel.getId(), tokenModel.getIndex());
+                plugin.db().deleteTokenInstance(tokenModel.getId(), tokenModel.getIndex());
             }
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return TOKEN_DELETE_FAILED;
         }
 
@@ -579,7 +557,7 @@ public class TokenManager {
 
         String id    = tokenModel.getId();
         String index = tokenModel.getIndex();
-        Database db = bootstrap.db();
+        ChainDatabase db = plugin.db();
         try {
             Collection<String> currentWorlds = db.getPermissionWorlds(id, index, perm);
             if (currentWorlds.contains(GLOBAL)) {
@@ -591,7 +569,7 @@ public class TokenManager {
 
             db.addPermission(id, index, perm, worlds);
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return TOKEN_UPDATE_FAILED;
         }
 
@@ -599,7 +577,7 @@ public class TokenManager {
     }
 
     private void addPermissionToPlayers(String perm, String id, String world) {
-        PlayerManager playerManager = bootstrap.getPlayerManager();
+        PlayerManager playerManager = plugin.getPlayerManager();
 
         for (UUID uuid : playerManager.getPlayers().keySet()) {
             Optional<MetaPlayer> player = playerManager.getPlayer(uuid);
@@ -658,7 +636,7 @@ public class TokenManager {
 
         String id    = tokenModel.getId();
         String index = tokenModel.getIndex();
-        Database db = bootstrap.db();
+        ChainDatabase db = plugin.db();
         try {
             Collection<String> currentWorlds = db.getPermissionWorlds(id, index, perm);
             boolean currentIsGlobal = currentWorlds.contains(GLOBAL);
@@ -670,7 +648,7 @@ public class TokenManager {
 
             db.deletePermission(id, index, perm, worlds);
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return TOKEN_UPDATE_FAILED;
         }
 
@@ -678,7 +656,7 @@ public class TokenManager {
     }
 
     private void removePermissionFromPlayers(String perm, String world) {
-        PlayerManager playerManager = bootstrap.getPlayerManager();
+        PlayerManager playerManager = plugin.getPlayerManager();
 
         for (UUID uuid : playerManager.getPlayers().keySet()) {
             Optional<MetaPlayer> player = playerManager.getPlayer(uuid);
@@ -712,7 +690,7 @@ public class TokenManager {
             return tokenModel;
         } catch (IllegalArgumentException ignored) {
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
         }
 
         return null;
@@ -773,18 +751,14 @@ public class TokenManager {
         if (tokenModel == null)
             return;
 
-        NotificationsService service = bootstrap.getNotificationsService();
-        if (service != null && !service.isSubscribedToToken(tokenModel.getId()))
-            service.subscribeToToken(tokenModel.getId());
+        plugin.chain().subscribeToToken(tokenModel);
     }
 
     private void unsubscribeToToken(TokenModel tokenModel) {
         if (tokenModel == null)
             return;
 
-        NotificationsService service = bootstrap.getNotificationsService();
-        if (service != null && service.isSubscribedToToken(tokenModel.getId()))
-            service.unsubscribeToToken(tokenModel.getId());
+        plugin.chain().unsubscribeToToken(tokenModel);
     }
 
     public int exportTokens() {
@@ -793,7 +767,7 @@ public class TokenManager {
                 if (!exportDir.mkdirs())
                     throw new Exception("Unable to create token export directory");
             } catch (Exception e) {
-                bootstrap.log(e);
+                e.printStackTrace();
                 return TOKEN_EXPORT_FAILED;
             }
         }
@@ -813,7 +787,7 @@ public class TokenManager {
                 String msg = tokenModel.isNonFungibleInstance()
                         ? String.format("Failed to export token \"%s\" #%d", name, TokenUtils.convertIndexToLong(tokenModel.getIndex()))
                         : String.format("Failed to export token \"%s\"", name);
-                bootstrap.debug(msg);
+                Logger.debug(msg);
             }
         }
 
@@ -834,7 +808,7 @@ public class TokenManager {
                 if (!exportDir.mkdirs())
                     throw new Exception("Unable to create token export directory");
             } catch (Exception e) {
-                bootstrap.log(e);
+                e.printStackTrace();
                 return TOKEN_EXPORT_FAILED;
             }
         }
@@ -851,7 +825,7 @@ public class TokenManager {
                 if (model != tokenModel
                         && model.getId().equals(tokenModel.getId())
                         && exportToken(model) != TOKEN_EXPORT_SUCCESS) { // Could not export instance
-                    bootstrap.debug(String.format("Failed to export non-fungible instance #%d of token \"%s\"",
+                    Logger.debug(String.format("Failed to export non-fungible instance #%d of token \"%s\"",
                             TokenUtils.convertIndexToLong(model.getIndex()),
                             name));
                 }
@@ -866,7 +840,7 @@ public class TokenManager {
         try (OutputStreamWriter out = new OutputStreamWriter(new FileOutputStream(file), CHARSET)) {
             gson.toJson(tokenModel, out);
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return TOKEN_EXPORT_FAILED;
         }
 
@@ -926,12 +900,12 @@ public class TokenManager {
                         break;
                 }
 
-                bootstrap.debug(String.format("Could not import token from file: \"%s\", reason given: \"%s\"", filename, msg));
+                Logger.debug(String.format("Could not import token from file: \"%s\", reason given: \"%s\"", filename, msg));
             }
         }
 
         if (importCount > 0) {
-            bootstrap.getPlayerManager()
+            plugin.getPlayerManager()
                     .getPlayers()
                     .values()
                     .forEach(MetaPlayer::validateInventory);
@@ -979,7 +953,7 @@ public class TokenManager {
 
             int status = updateTokenConf(tokenModel);
             if (status == TOKEN_UPDATE_SUCCESS) {
-                Database db = bootstrap.db();
+                ChainDatabase db = plugin.db();
                 String id    = tokenModel.getId();
                 String index = tokenModel.getIndex();
 
@@ -1003,7 +977,7 @@ public class TokenManager {
 
             return status;
         } catch (Exception e) {
-            bootstrap.log(e);
+            e.printStackTrace();
             return TOKEN_IMPORT_FAILED;
         }
     }

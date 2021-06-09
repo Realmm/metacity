@@ -10,7 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
-import org.metacity.metacity.SpigotBootstrap;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.enums.Trader;
 import org.metacity.metacity.events.MetaPlayerQuitEvent;
 import org.metacity.metacity.exceptions.GraphQLException;
@@ -28,10 +28,10 @@ import java.util.Optional;
 
 public class TradeManager implements Listener {
 
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin;
 
-    public TradeManager(SpigotBootstrap bootstrap) {
-        this.bootstrap = bootstrap;
+    public TradeManager() {
+        this.plugin = MetaCity.getInstance();
     }
 
     public boolean inviteExists(MetaPlayer sender, MetaPlayer target) {
@@ -54,8 +54,8 @@ public class TradeManager implements Listener {
             boolean removedFromInvitee = invitee.getReceivedTradeInvites().remove(inviter);
 
             if (removedFromInviter && removedFromInvitee) {
-                inviter.setActiveTradeView(new TradeView(bootstrap, inviter, invitee, Trader.INVITER));
-                invitee.setActiveTradeView(new TradeView(bootstrap, invitee, inviter, Trader.INVITED));
+                inviter.setActiveTradeView(new TradeView(inviter, invitee, Trader.INVITER));
+                invitee.setActiveTradeView(new TradeView(invitee, inviter, Trader.INVITED));
                 inviter.getActiveTradeView().open();
                 invitee.getActiveTradeView().open();
                 return true;
@@ -82,10 +82,10 @@ public class TradeManager implements Listener {
 
     public void completeTrade(Integer requestId) {
         try {
-            TradeSession session = bootstrap.db().getSessionFromRequestId(requestId);
+            TradeSession session = plugin.db().getSessionFromRequestId(requestId);
             completeTrade(session);
-        } catch (Exception ex) {
-            bootstrap.log(ex);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -100,54 +100,23 @@ public class TradeManager implements Listener {
         invitee.ifPresent(Translation.COMMAND_TRADE_COMPLETE::send);
 
         try {
-            bootstrap.db().tradeExecuted(session.getCompleteRequestId());
-        } catch (Exception ex) {
-            bootstrap.log(ex);
+            plugin.db().tradeExecuted(session.getCompleteRequestId());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     public void sendCompleteRequest(Integer requestId, String tradeId) {
         try {
-            TradeSession session = bootstrap.db().getSessionFromRequestId(requestId);
+            TradeSession session = plugin.db().getSessionFromRequestId(requestId);
             sendCompleteRequest(session, tradeId);
-        } catch (Exception ex) {
-            bootstrap.log(ex);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     public void sendCompleteRequest(TradeSession session, String tradeId) {
-        if (session == null || StringUtils.isEmpty(tradeId))
-            return;
-
-        Optional<Player> inviter = Optional.ofNullable(Bukkit.getPlayer(session.getInviterUuid()));
-        Optional<Player> invitee = Optional.ofNullable(Bukkit.getPlayer(session.getInvitedUuid()));
-
-        TrustedPlatformClient client = bootstrap.getTrustedPlatformClient();
-        client.getRequestService().createRequestAsync(new CreateRequest()
-                        .appId(client.getAppId())
-                        .identityId(session.getInvitedIdentityId())
-                        .completeTrade(CompleteTradeData.builder()
-                                .tradeId(tradeId)
-                                .build()),
-                networkResponse -> {
-                    if (!networkResponse.isSuccess())
-                        throw new NetworkException(networkResponse.code());
-
-                    GraphQLResponse<Transaction> graphQLResponse = networkResponse.body();
-                    if (!graphQLResponse.isSuccess())
-                        throw new GraphQLException(graphQLResponse.getErrors());
-
-                    Transaction dataIn = graphQLResponse.getData();
-                    inviter.ifPresent(Translation.COMMAND_TRADE_CONFIRM_WAIT::send);
-                    invitee.ifPresent(Translation.COMMAND_TRADE_CONFIRM_ACTION::send);
-
-                    try {
-                        bootstrap.db().completeTrade(session.getCreateRequestId(), dataIn.getId(), tradeId);
-                    } catch (SQLException ex) {
-                        bootstrap.log(ex);
-                    }
-                }
-        );
+        plugin.chain().sendCompleteRequest(session, tradeId);
     }
 
     public void createTrade(MetaPlayer inviter,
@@ -170,98 +139,18 @@ public class TradeManager implements Listener {
     }
 
     private void send(MetaPlayer inviter, MetaPlayer invitee, List<ItemStack> tokens) {
-        TrustedPlatformClient client = bootstrap.getTrustedPlatformClient();
-        CreateRequest input = new CreateRequest()
-                .appId(client.getAppId())
-                .identityId(inviter.getIdentityId());
-
-        if (tokens.size() == 1) {
-            ItemStack is = tokens.get(0);
-            SendTokenData.SendTokenDataBuilder builder = SendTokenData.builder();
-            builder.recipientIdentityId(invitee.getIdentityId())
-                    .tokenId(TokenUtils.getTokenID(is))
-                    .value(is.getAmount());
-
-            if (TokenUtils.isNonFungible(is))
-                builder.tokenIndex(TokenUtils.getTokenIndex(is));
-
-            input.sendToken(builder.build());
-        } else {
-            List<TransferData> transfers = new ArrayList<>();
-
-            for (ItemStack is : tokens) {
-                TransferData.TransferDataBuilder builder = TransferData.builder()
-                        .fromId(inviter.getIdentityId())
-                        .toId(invitee.getIdentityId())
-                        .tokenId(TokenUtils.getTokenID(is))
-                        .value(String.valueOf(is.getAmount()));
-
-                if (TokenUtils.isNonFungible(is))
-                    builder.tokenIndex(TokenUtils.getTokenIndex(is));
-
-                transfers.add(builder.build());
-            }
-
-            input.advancedSendToken(AdvancedSendTokenData.builder()
-                    .transfers(transfers)
-                    .build());
-        }
-
-        client.getRequestService().createRequestAsync(input, networkResponse -> {
-            if (!networkResponse.isSuccess())
-                throw new NetworkException(networkResponse.code());
-
-            GraphQLResponse<Transaction> graphQLResponse = networkResponse.body();
-            if (!graphQLResponse.isSuccess())
-                throw new GraphQLException(graphQLResponse.getErrors());
-
-            Translation.COMMAND_TRADE_CONFIRM_WAIT.send(invitee.getBukkitPlayer());
-            Translation.COMMAND_TRADE_CONFIRM_ACTION.send(inviter.getBukkitPlayer());
-        });
+        plugin.chain().send(inviter, invitee, tokens);
     }
 
     private void createTradeRequest(MetaPlayer inviter, MetaPlayer invitee, List<TokenValueData> playerOneTokens, List<TokenValueData> playerTwoTokens) {
-        TrustedPlatformClient client = bootstrap.getTrustedPlatformClient();
-        client.getRequestService().createRequestAsync(new CreateRequest()
-                        .appId(client.getAppId())
-                        .identityId(inviter.getIdentityId())
-                        .createTrade(CreateTradeData.builder()
-                                .offeringTokens(playerOneTokens)
-                                .askingTokens(playerTwoTokens)
-                                .secondPartyIdentityId(invitee.getIdentityId())
-                                .build()),
-                networkResponse -> {
-                    try {
-                        if (!networkResponse.isSuccess())
-                            throw new NetworkException(networkResponse.code());
-
-                        GraphQLResponse<Transaction> graphQLResponse = networkResponse.body();
-                        if (!graphQLResponse.isSuccess())
-                            throw new GraphQLException(graphQLResponse.getErrors());
-
-                        Transaction dataIn = graphQLResponse.getData();
-                        Translation.COMMAND_TRADE_CONFIRM_WAIT.send(invitee.getBukkitPlayer());
-                        Translation.COMMAND_TRADE_CONFIRM_ACTION.send(inviter.getBukkitPlayer());
-
-                        bootstrap.db().createTrade(inviter.getBukkitPlayer().getUniqueId(),
-                                inviter.getIdentityId(),
-                                inviter.getEthereumAddress(),
-                                invitee.getBukkitPlayer().getUniqueId(),
-                                invitee.getIdentityId(),
-                                invitee.getEthereumAddress(),
-                                dataIn.getId());
-                    } catch (Exception ex) {
-                        bootstrap.log(ex);
-                    }
-                }
-        );
+        plugin.chain().createTradeRequest(inviter, invitee, playerOneTokens, playerTwoTokens);
     }
 
     public void cancelTrade(Integer requestId) {
         try {
-            bootstrap.db().cancelTrade(requestId);
-        } catch (SQLException ex) {
-            bootstrap.log(ex);
+            plugin.db().cancelTrade(requestId);
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 

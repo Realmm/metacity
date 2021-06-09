@@ -2,7 +2,7 @@ package org.metacity.metacity.cmd.enjin.token;
 
 import org.metacity.metacity.cmd.enjin.CommandContext;
 import org.metacity.metacity.cmd.enjin.CommandRequirements;
-import org.metacity.metacity.cmd.enjin.EnjCommand;
+import org.metacity.metacity.cmd.enjin.MetaCommand;
 import org.metacity.metacity.cmd.enjin.SenderType;
 import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.token.TokenManager;
@@ -10,9 +10,9 @@ import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.Translation;
 
-public class CmdNickname extends EnjCommand {
+public class CmdNickname extends MetaCommand {
 
-    public CmdNickname(EnjCommand parent) {
+    public CmdNickname(MetaCommand parent) {
         super(parent);
         this.aliases.add("nickname");
         this.requiredArgs.add("token-id|alt-id");

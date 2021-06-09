@@ -2,94 +2,79 @@ package org.metacity.scoreboard;
 
 import org.bukkit.entity.Player;
 
+import javax.annotation.Nullable;
+
 public class Line {
 
-    private int index;
-    private LineExecution execution;
-    private boolean append;
+    private @Nullable LineExecution execution;
     private boolean visible = true;
-    private boolean update;
+    private boolean refresh;
+    private Slot slot;
 
-    public Line(LineExecution execution, boolean append) {
+    Line(@Nullable LineExecution execution, Slot slot) {
         this.execution = execution;
-        this.append = append;
+        this.slot = slot;
     }
 
-    public Line(String s, boolean append) {
-        this(p -> s, append);
+    Line(@Nullable String s, Slot slot) {
+        this(s == null ? null : p -> s, slot);
     }
 
-    public Line(String s) {
-        this(p -> s, true);
+    public Slot slot() {
+        return slot;
     }
 
-    public Line(LineExecution execution) {
-        this(execution, true);
+    public void setSlot(Slot slot) {
+        this.slot = slot;
+        setToRefresh(true);
     }
 
-    void setIndex(int index) {
-        this.index = index;
-    }
-
-    public int getIndex() {
-        return index;
-    }
-
-    public LineExecution getContent() {
+    public LineExecution content() {
         return execution;
     }
 
-    public String getContent(Player p) {
-        return execution.execute(p);
+    public String content(Player p) {
+        return execution == null ? "" : execution.execute(p);
     }
 
     public void setContent(LineExecution execution) {
         this.execution = execution;
-        setUpdate(true);
+        setToRefresh(true);
     }
 
     public void setContent(String s) {
         this.execution = p -> s;
-        setUpdate(true);
-    }
-
-    public void setAppend(boolean append) {
-        this.append = append;
-        setUpdate(true);
-    }
-
-    public boolean getAppend() {
-        return append;
+        setToRefresh(true);
     }
 
     public void setVisible(boolean visible) {
         this.visible = visible;
-        setUpdate(true);
+        setToRefresh(true);
     }
 
     public boolean isVisible() {
-        return visible;
+        return execution != null && visible;
     }
 
     public Line clone() {
-        Line line = new Line(execution);
-        line.setIndex(index);
-        line.setAppend(append);
+        Line line = new Line(execution, slot);
         line.setVisible(visible);
-        line.setUpdate(update);
+        line.setToRefresh(refresh);
         return line;
     }
 
-    boolean getUpdate() {
-        return update;
+    //Whether the line should be refreshed on the scoreboard
+    boolean shouldRefresh(Player p) {
+        return refresh ;
     }
 
-    void setUpdate(boolean update) {
-        this.update = update;
+    //Set if this line should up refreshed on the scoreboard
+    private void setToRefresh(boolean refresh) {
+        this.refresh = refresh;
     }
 
     public boolean equals(Line line, Player p) {
-        return line.getContent(p).equals(getContent(p)) && line.getAppend() == append && line.isVisible() == visible;
+        return line.content(p).equals(content(p)) && line.slot().slot == slot().slot && line.isVisible() == visible;
     }
 
 }

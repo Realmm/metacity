@@ -6,11 +6,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.metacity.metacity.MetaCity;
-import org.metacity.metacity.SpigotBootstrap;
 import org.metacity.metacity.events.MetaPlayerQuitEvent;
+import org.metacity.scoreboard.MetaScoreboard;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,20 +22,26 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerManager implements Listener, PlayerManagerApi {
 
-    private final SpigotBootstrap bootstrap;
+    private final MetaCity plugin = MetaCity.getInstance();
     private final Map<UUID, MetaPlayer> players = new ConcurrentHashMap<>();
 
-    public PlayerManager(SpigotBootstrap bootstrap) {
-        this.bootstrap = bootstrap;
+    public PlayerManager() {
+
+    }
+
+    @EventHandler (priority = EventPriority.LOWEST)
+    public void on(PlayerJoinEvent e) {
+        if (e.getPlayer().getWorld().getName().equals("world"))
+            e.getPlayer().teleport(MetaCity.getInstance().generator().world().getSpawnLocation());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
         try {
-            MetaPlayer metaPlayer = new MetaPlayer(bootstrap, event.getPlayer());
+            MetaPlayer metaPlayer = players.getOrDefault(event.getPlayer().getUniqueId(), new MetaPlayer(bootstrap, event.getPlayer()));
             addPlayer(metaPlayer);
             // Fetch or create a User and Identity associated with the joining Player
-            PlayerInitializationTask.create(bootstrap, metaPlayer);
+            PlayerInitializationTask.create(metaPlayer);
             metaPlayer.removeQrMap();
             Bukkit.getScheduler().runTaskLater(MetaCity.getInstance(), () -> metaPlayer.board().update(), 20);
         } catch (Exception ex) {

@@ -1,5 +1,7 @@
 package org.metacity.metacity.plot;
 
+import org.metacity.metacity.plot.base.BasePlot;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -9,12 +11,19 @@ public final class PlotManager {
 
     private final List<Plot> plots = new ArrayList<>();
 
-    public PlotManager() {
+    private static PlotManager plotManager;
+
+    private PlotManager() {
 
     }
 
-//    public Collection<Plot> getPlots() {
-//        return
-//    }
+    public static PlotManager of() {
+        if (plotManager == null) plotManager = new PlotManager();
+        return plotManager;
+    }
+
+    public Collection<Plot> getPlots() {
+        return Collections.unmodifiableCollection(plots);
+    }
 
 }
