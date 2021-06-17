@@ -14,3 +14,8 @@ We do this by utilising the Enjin platform, which itself is just a token on the 
 </h3>
 
 ---
+
+To install, download at least maven version 3.8.1. 
+Also, download and use Java 16
+The plugin currently uses Spigot version 1.17
+
