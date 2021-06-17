@@ -20,7 +20,7 @@ public class MongoDatabase extends MongoDB {
 
     public void save(MetaPlayer p) {
         if (playerCollection == null) throw new IllegalStateException("Player collection not instantiated yet");
-        getDocument(playerCollection, "_id", p.);
+//        getDocument(playerCollection, "_id", p.);
     }
 
 

@@ -14,52 +14,55 @@ import org.metacity.metacity.exceptions.NetworkException;
 import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.player.PlayerManager;
 import org.metacity.metacity.storage.ChainDatabase;
-import org.metacity.metacity.util.StringUtils;
+import org.metacity.metacity.token.nfts.TestSword;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.MetaConfig;
 import org.metacity.metacity.wallet.TokenWalletViewState;
 import org.metacity.util.Logger;
+import org.yaml.snakeyaml.events.ScalarEvent;
 
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.function.ToLongFunction;
+import java.util.stream.Stream;
 
 public class TokenManager {
 
     // Status codes
-    public static final int TOKEN_CREATE_SUCCESS       = 200; // Token was created
-    public static final int TOKEN_UPDATE_SUCCESS       = 201; // Token was updated
-    public static final int TOKEN_DELETE_SUCCESS       = 202; // Token was deleted
-    public static final int PERM_ADDED_SUCCESS         = 210; // Permission was added
-    public static final int PERM_REMOVED_SUCCESS       = 250; // Permission was removed
-    public static final int TOKEN_EXPORT_SUCCESS       = 290; // Token(s) were exported
-    public static final int TOKEN_IMPORT_SUCCESS       = 291; // Token(s) were imported
-    public static final int TOKEN_EXPORT_EMPTY         = 292; // No token to export
-    public static final int TOKEN_IMPORT_EMPTY         = 293; // No token to import
-    public static final int TOKEN_CREATE_FAILED        = 400; // Token was not created
-    public static final int TOKEN_UPDATE_FAILED        = 401; // Token was not updated
-    public static final int TOKEN_DELETE_FAILED        = 402; // Token was not deleted
-    public static final int TOKEN_NOSUCHTOKEN          = 403; // The token does not exist
-    public static final int TOKEN_ALREADYEXISTS        = 404; // Token already exists
-    public static final int TOKEN_INVALIDDATA          = 405; // Invalid token data
+    public static final int TOKEN_CREATE_SUCCESS = 200; // Token was created
+    public static final int TOKEN_UPDATE_SUCCESS = 201; // Token was updated
+    public static final int TOKEN_DELETE_SUCCESS = 202; // Token was deleted
+    public static final int PERM_ADDED_SUCCESS = 210; // Permission was added
+    public static final int PERM_REMOVED_SUCCESS = 250; // Permission was removed
+    public static final int TOKEN_EXPORT_SUCCESS = 290; // Token(s) were exported
+    public static final int TOKEN_IMPORT_SUCCESS = 291; // Token(s) were imported
+    public static final int TOKEN_EXPORT_EMPTY = 292; // No token to export
+    public static final int TOKEN_IMPORT_EMPTY = 293; // No token to import
+    public static final int TOKEN_CREATE_FAILED = 400; // Token was not created
+    public static final int TOKEN_UPDATE_FAILED = 401; // Token was not updated
+    public static final int TOKEN_DELETE_FAILED = 402; // Token was not deleted
+    public static final int TOKEN_NOSUCHTOKEN = 403; // The token does not exist
+    public static final int TOKEN_ALREADYEXISTS = 404; // Token already exists
+    public static final int TOKEN_INVALIDDATA = 405; // Invalid token data
     public static final int TOKEN_DELETE_FAILEDNFTBASE = 406; // Deleting NFT base when still has instances
-    public static final int TOKEN_MARKEDFORDELETION    = 407; // Token is marked for deletion
-    public static final int TOKEN_ISNOTBASE            = 408; // Token is not base model
+    public static final int TOKEN_MARKEDFORDELETION = 407; // Token is marked for deletion
+    public static final int TOKEN_ISNOTBASE = 408; // Token is not base model
     public static final int TOKEN_CREATE_FAILEDNFTBASE = 409; // Unable to create base model
-    public static final int TOKEN_DUPLICATENICKNAME    = 420; // Token alternate id already exists
-    public static final int TOKEN_HASNICKNAME          = 421; // Token has alternate
-    public static final int TOKEN_INVALIDNICKNAME      = 422; // Nickname cannot be a valid token id
-    public static final int TOKEN_HASWALLETVIEWSTATE   = 430; // Token has wallet view state
-    public static final int PERM_ADDED_DUPLICATEPERM   = 440; // Permission is a duplicate
-    public static final int PERM_ADDED_BLACKLISTED     = 441; // Permission is blacklisted
+    public static final int TOKEN_DUPLICATENICKNAME = 420; // Token alternate id already exists
+    public static final int TOKEN_HASNICKNAME = 421; // Token has alternate
+    public static final int TOKEN_INVALIDNICKNAME = 422; // Nickname cannot be a valid token id
+    public static final int TOKEN_HASWALLETVIEWSTATE = 430; // Token has wallet view state
+    public static final int PERM_ADDED_DUPLICATEPERM = 440; // Permission is a duplicate
+    public static final int PERM_ADDED_BLACKLISTED = 441; // Permission is blacklisted
     public static final int PERM_REMOVED_NOPERMONTOKEN = 450; // Permission is not assigned
-    public static final int PERM_ISGLOBAL              = 460; // Permission is global
-    public static final int TOKEN_EXPORT_FAILED        = 490; // Token(s) were not exported
-    public static final int TOKEN_IMPORT_FAILED        = 491; // Token(s) were not imported
-    public static final int TOKEN_EXPORT_PARTIAL       = 492; // Some token(s) were not exported
-    public static final int TOKEN_IMPORT_PARTIAL       = 493; // Some token(s) were not imported
+    public static final int PERM_ISGLOBAL = 460; // Permission is global
+    public static final int TOKEN_EXPORT_FAILED = 490; // Token(s) were not exported
+    public static final int TOKEN_IMPORT_FAILED = 491; // Token(s) were not imported
+    public static final int TOKEN_EXPORT_PARTIAL = 492; // Some token(s) were not exported
+    public static final int TOKEN_IMPORT_PARTIAL = 493; // Some token(s) were not imported
 
     public static final Charset CHARSET = StandardCharsets.UTF_8;
     public static final String EXPORT_FOLDER = "tokens_export";
@@ -96,6 +99,12 @@ public class TokenManager {
 
         this.exportDir.mkdirs();
         this.importDir.mkdirs();
+    }
+
+    public void loadLocalTokens() {
+        Stream.of(
+                new TestSword()
+        ).forEach(token -> token.models().forEach(this::saveToken));
     }
 
     public void loadTokens() {
@@ -156,8 +165,8 @@ public class TokenManager {
     }
 
     public int saveToken(@NonNull TokenModel tokenModel) throws NullPointerException {
-        String     alternateId = tokenModel.getAlternateId();
-        TokenModel other       = alternateId == null ? null : getToken(alternateId);
+        String alternateId = tokenModel.getAlternateId();
+        TokenModel other = alternateId == null ? null : getToken(alternateId);
         if (other != null && !other.getId().equals(tokenModel.getId())) { // Alternate id already exists
             return TOKEN_DUPLICATENICKNAME;
         } else if (alternateId != null && !isValidAlternateId(alternateId)) { // Alternate id is invalid
@@ -213,7 +222,7 @@ public class TokenManager {
             db.createTokenInstance(tokenModel);
             tokenModel.load();
         } catch (Exception e) {
-            e.printStackTrace();
+//            e.printStackTrace();
             return TOKEN_CREATE_FAILED;
         }
 
@@ -275,7 +284,7 @@ public class TokenManager {
 
     private void updateTokenPermissionsDatabase(TokenModel tokenModel) throws SQLException {
         ChainDatabase db = plugin.db();
-        String id    = tokenModel.getId();
+        String id = tokenModel.getId();
         String index = tokenModel.getIndex();
         List<TokenPermission> dbPermissions;
 
@@ -343,7 +352,7 @@ public class TokenManager {
         else if (!tokenModel.isBaseModel())
             return TOKEN_ISNOTBASE;
 
-        if (StringUtils.isEmpty(metadataURI))
+        if (metadataURI.isEmpty())
             metadataURI = null;
 
         tokenModel.setMetadataURI(metadataURI);
@@ -424,7 +433,7 @@ public class TokenManager {
         boolean markedForDeletion = baseModel.isMarkedForDeletion();
 
         tokenModels.values().forEach(tokenModel -> {
-            String tokenId    = tokenModel.getId();
+            String tokenId = tokenModel.getId();
             String tokenIndex = tokenModel.getIndex();
             if (!tokenId.equals(baseModel.getId()) || tokenIndex.equals(TokenUtils.BASE_INDEX))
                 return;
@@ -555,7 +564,7 @@ public class TokenManager {
         if (tokenModel == null)
             return TOKEN_NOSUCHTOKEN;
 
-        String id    = tokenModel.getId();
+        String id = tokenModel.getId();
         String index = tokenModel.getIndex();
         ChainDatabase db = plugin.db();
         try {
@@ -634,13 +643,13 @@ public class TokenManager {
         if (tokenModel == null)
             return TOKEN_NOSUCHTOKEN;
 
-        String id    = tokenModel.getId();
+        String id = tokenModel.getId();
         String index = tokenModel.getIndex();
         ChainDatabase db = plugin.db();
         try {
             Collection<String> currentWorlds = db.getPermissionWorlds(id, index, perm);
             boolean currentIsGlobal = currentWorlds.contains(GLOBAL);
-            boolean newIsGlobal     = worlds.contains(GLOBAL);
+            boolean newIsGlobal = worlds.contains(GLOBAL);
             if (currentIsGlobal && !newIsGlobal)
                 return PERM_REMOVED_NOPERMONTOKEN;
             else if (newIsGlobal)
@@ -683,7 +692,7 @@ public class TokenManager {
     public TokenModel getToken(@Nullable ItemStack is) {
         try {
             TokenModel tokenModel = tokenModels.get(TokenUtils.createFullId(TokenUtils.getTokenID(is),
-                                                                            TokenUtils.getTokenIndex(is)));
+                    TokenUtils.getTokenIndex(is)));
             if (tokenModel != null && tokenModel.isNonfungible() != TokenUtils.isNonFungible(is))
                 throw new IllegalStateException("Token item has different fungibility state than its registered model");
 
@@ -781,7 +790,7 @@ public class TokenManager {
             if (exportToken(tokenModel) == TOKEN_EXPORT_SUCCESS) {
                 exportCount++;
             } else {
-                String name = StringUtils.isEmpty(tokenModel.getAlternateId())
+                String name = tokenModel.getAlternateId().isEmpty()
                         ? tokenModel.getId()
                         : tokenModel.getAlternateId();
                 String msg = tokenModel.isNonFungibleInstance()
@@ -817,7 +826,7 @@ public class TokenManager {
         if (tokenModel.isNonfungible()
                 && tokenModel.isBaseModel()
                 && (id.equals(tokenModel.getId()) || id.equals(tokenModel.getAlternateId()))) {
-            String name = StringUtils.isEmpty(tokenModel.getAlternateId())
+            String name = tokenModel.getAlternateId().isEmpty()
                     ? tokenModel.getId()
                     : tokenModel.getAlternateId();
 
@@ -857,7 +866,7 @@ public class TokenManager {
         else if (files.length == 0)
             return TOKEN_IMPORT_EMPTY;
 
-        int tokenCount   = 0;
+        int tokenCount = 0;
         int importCount = 0;
         for (File file : files) {
             if (file.isDirectory() || !file.getName().endsWith(JSON_EXT))
@@ -954,7 +963,7 @@ public class TokenManager {
             int status = updateTokenConf(tokenModel);
             if (status == TOKEN_UPDATE_SUCCESS) {
                 ChainDatabase db = plugin.db();
-                String id    = tokenModel.getId();
+                String id = tokenModel.getId();
                 String index = tokenModel.getIndex();
 
                 permGraph.removeToken(other);
@@ -967,8 +976,8 @@ public class TokenManager {
                 for (TokenPermission permission : tokenModel.getAssignablePermissions()) {
                     db.addPermission(id, index, permission);
                     permission.getWorlds().forEach(world -> addPermissionToPlayers(permission.getPermission(),
-                                                                                   tokenModel.getFullId(),
-                                                                                   world));
+                            tokenModel.getFullId(),
+                            world));
                 }
 
                 if (tokenModel.isBaseModel() && tokenModel.isNonfungible())

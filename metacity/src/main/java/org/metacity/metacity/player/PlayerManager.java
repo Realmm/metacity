@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerManager implements Listener, PlayerManagerApi {
 
-    private final MetaCity plugin = MetaCity.getInstance();
     private final Map<UUID, MetaPlayer> players = new ConcurrentHashMap<>();
 
     public PlayerManager() {
@@ -38,28 +37,24 @@ public class PlayerManager implements Listener, PlayerManagerApi {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
         try {
-            MetaPlayer metaPlayer = players.getOrDefault(event.getPlayer().getUniqueId(), new MetaPlayer(bootstrap, event.getPlayer()));
+            MetaPlayer metaPlayer = players.getOrDefault(event.getPlayer().getUniqueId(), new MetaPlayer(event.getPlayer()));
             addPlayer(metaPlayer);
             // Fetch or create a User and Identity associated with the joining Player
             PlayerInitializationTask.create(metaPlayer);
             metaPlayer.removeQrMap();
-            Bukkit.getScheduler().runTaskLater(MetaCity.getInstance(), () -> metaPlayer.board().update(), 20);
-        } catch (Exception ex) {
-            bootstrap.log(ex);
+            metaPlayer.board().update();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         try {
-            MetaPlayer player = removePlayer(event.getPlayer());
-            if (player == null)
-                return;
-
-            Bukkit.getPluginManager().callEvent(new MetaPlayerQuitEvent(player));
-            player.cleanUp();
-        } catch (Exception ex) {
-            bootstrap.log(ex);
+            getPlayer(event.getPlayer()).ifPresent(m ->
+                    Bukkit.getPluginManager().callEvent(new MetaPlayerQuitEvent(m)));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -95,14 +90,13 @@ public class PlayerManager implements Listener, PlayerManagerApi {
     }
 
     public void addPlayer(@NonNull MetaPlayer player) throws IllegalArgumentException, NullPointerException {
-        if (!player.getBukkitPlayer().isOnline())
-            throw new IllegalArgumentException("Player must be online");
+        if (getPlayer(player.uuid()).isPresent()) return;
 
-        players.put(player.getBukkitPlayer().getUniqueId(), player);
+        players.put(player.uuid(), player);
     }
 
-    public MetaPlayer removePlayer(@NonNull Player player) {
-        return players.remove(player.getUniqueId());
-    }
+//    public MetaPlayer removePlayer(@NonNull Player player) {
+//        return players.remove(player.getUniqueId());
+//    }
 
 }

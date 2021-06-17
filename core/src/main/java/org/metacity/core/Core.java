@@ -2,8 +2,8 @@ package org.metacity.core;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.ConsoleCommandSender;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.metacity.commands.Command;
+import org.metacity.commands.CommandNode;
 
 import java.util.stream.Stream;
 
@@ -21,7 +21,7 @@ public class Core extends CorePlugin {
     @Override
     public void onDisable() {
         super.onDisable();
-        Command.unregisterAll();
+        CommandNode.unregisterAll();
     }
 
     private void registerCommands() {
@@ -30,7 +30,7 @@ public class Core extends CorePlugin {
                         .withExecution((s, w) ->
                                 Bukkit.dispatchCommand(s, "plugman reload all")
                         ).build()
-        ).forEach(c -> Command.register(c));
+        ).forEach(c -> CommandNode.register(c));
     }
 
     public static Core getInstance() {

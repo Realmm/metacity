@@ -12,8 +12,7 @@ public class TokenPermission {
     public static final String PERMISSION_KEY = "perm";
     public static final String WORLDS_KEY = "worlds";
 
-    @Getter
-    private final String permission;
+    @Getter private final String permission;
     private final Set<String> worlds = new HashSet<>();
 
     public TokenPermission(@NonNull TokenPermission permission) throws NullPointerException {

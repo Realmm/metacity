@@ -32,7 +32,7 @@ public class Generator {
         creator.type(WorldType.FLAT);
         this.world = creator.createWorld();
         this.world.setDifficulty(Difficulty.PEACEFUL);
-
+        this.world.setSpawnLocation(this.world.getHighestBlockAt(0, 0).getLocation());
     }
 
     public World world() {

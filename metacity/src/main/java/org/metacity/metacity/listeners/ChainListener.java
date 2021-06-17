@@ -144,8 +144,10 @@ public class ChainListener implements com.enjin.sdk.services.notification.Notifi
 
         JsonObject wallet = event.getEventData().getAsJsonObject("wallet");
 
-        Translation.COMMAND_LINK_SUCCESS.send(metaPlayer.getBukkitPlayer(), wallet.get("ethAddress").getAsString());
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, metaPlayer::reloadIdentity);
+        metaPlayer.player().ifPresent(p -> {
+            Translation.COMMAND_LINK_SUCCESS.send(p, wallet.get("ethAddress").getAsString());
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, metaPlayer::reloadIdentity);
+        });
     }
 
     private void onIdentityUnlinked(NotificationEvent event) {
@@ -159,8 +161,10 @@ public class ChainListener implements com.enjin.sdk.services.notification.Notifi
         int id = identity.get("id").getAsInt();
 
         Optional<MetaPlayer> playerOptional = plugin.getPlayerManager().getPlayer(id);
-        playerOptional.ifPresent(player -> Bukkit.getScheduler().runTaskAsynchronously(plugin,
-                                                                                       player::unlinked));
+        playerOptional.ifPresent(player -> {
+            Bukkit.getScheduler().runTaskAsynchronously(plugin,
+                    player::unlinked);
+        });
     }
 
     private void onTokenUpdated(NotificationEvent event) {

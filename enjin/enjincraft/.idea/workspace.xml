@@ -2,27 +2,23 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="66dd2d05-5016-4feb-ac18-c5a30cb9deca" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/../sdk/enjin-java-sdk.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../core/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/BlankLine.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/BlankLine.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/Line.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/Line.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/LineInput.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/RealmScoreboard.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/ScoreboardTeam.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/ScoreboardTeam.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/Slot.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/Slot.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/commands/Command.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/commands/Command.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/MetaScoreboard.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/MetaScoreboard.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/UberBoard.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/src/main/java/org/metacity/scoreboard/UberBoard.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/target/classes/org/metacity/core/Core.class" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/target/classes/org/metacity/core/Core.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/target/classes/org/metacity/core/CorePlugin.class" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/target/classes/org/metacity/core/CorePlugin.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../core/target/maven-archiver/pom.properties" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/target/maven-archiver/pom.properties" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../core/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/AuthenticationTask.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/Bootstrap.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/EnjTokenView.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/token/MetaTokenView.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/EnjinCraft.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/Chain.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/Chain.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/MetaCity.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/MetaCity.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/Module.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/SpigotBootstrap.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/CmdEnj.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/CmdMeta.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/CmdHelp.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/CmdHelp.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/CmdMeta.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/CmdMeta.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/CommandContext.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/CommandContext.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/EnjCommand.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/MetaCommand.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/MetaCommand.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/MetaCommand.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/arg/TokenDefinitionArgumentProcessor.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/arg/TokenDefinitionArgumentProcessor.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/perm/CmdAddPerm.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/perm/CmdAddPerm.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/perm/CmdAddPermNFT.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/perm/CmdAddPermNFT.java" afterDir="false" />
@@ -41,7 +37,6 @@
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/token/CmdRemoveURI.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/token/CmdRemoveURI.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/token/CmdSetWalletView.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/token/CmdSetWalletView.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/token/CmdToInv.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/token/CmdToInv.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/token/CmdToken.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/token/CmdToken.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/token/CmdUpdate.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/token/CmdUpdate.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/CmdBalance.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/CmdBalance.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/CmdWallet.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/CmdWallet.java" afterDir="false" />
@@ -50,27 +45,24 @@
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/trade/CmdAccept.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/trade/CmdAccept.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/trade/CmdDecline.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/trade/CmdDecline.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/trade/CmdInvite.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/trade/CmdInvite.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/trade/CmdTrade.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/cmd/enjin/wallet/trade/CmdTrade.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/listeners/EnjEventListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/listeners/ChainListener.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/listeners/QrItemListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/listeners/QrItemListener.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/conversations/prompts/TokenIdPrompt.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/conversations/prompts/TokenIdPrompt.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/exceptions/UnregisterTradeInviteException.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/exceptions/UnregisterTradeInviteException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/listeners/ChainListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/listeners/ChainListener.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/listeners/TokenItemListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/listeners/TokenItemListener.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/FetchQrImageTask.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/FetchQrImageTask.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/MetaPermissionAttachment.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/MetaPermissionAttachment.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/MetaPlayer.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/MetaPlayer.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/PlayerInitializationTask.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/PlayerInitializationTask.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/PlayerListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/PlayerListener.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/PlayerManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/PlayerManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/plot/Plot.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/plot/base/BasePlot.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/plot/PlotManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/plot/PlotManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/storage/Database.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/storage/ChainDatabase.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/token/LegacyTokenConverter.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/token/LegacyTokenConverter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/token/TokenManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/token/TokenManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/scoreboard/MetaTemplate.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/player/scoreboard/MetaTemplate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/plot/base/BasePlot.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/plot/base/BasePlot.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/storage/MongoDatabase.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/storage/MongoDatabase.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/token/TokenModel.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/token/TokenModel.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/trade/TradeManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/trade/TradeManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/trade/TradeUpdateTask.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/trade/TradeUpdateTask.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/trade/TradeView.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/trade/TradeView.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/util/TextUtil.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/util/TextUtil.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/wallet/TokenWallet.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/wallet/TokenWallet.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/util/StringUtils.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/util/server/Translation.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/util/server/Translation.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/wallet/TokenWalletView.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/java/org/metacity/metacity/wallet/TokenWalletView.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../metacity/src/main/resources/lang/en_US.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/resources/lang/en_US.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../metacity/src/main/resources/plugin.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../../metacity/src/main/resources/plugin.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -104,6 +96,10 @@
       <workItem from="1623036727622" duration="7636000" />
       <workItem from="1623071272092" duration="1713000" />
       <workItem from="1623146290296" duration="614000" />
+      <workItem from="1623483688504" duration="599000" />
+      <workItem from="1623491007335" duration="599000" />
+      <workItem from="1623547037829" duration="302000" />
+      <workItem from="1623547347276" duration="439000" />
     </task>
     <servers />
   </component>

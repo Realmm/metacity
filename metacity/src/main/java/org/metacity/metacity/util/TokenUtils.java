@@ -245,8 +245,8 @@ public class TokenUtils {
         boolean firstNF  = isNonFungible(first);
         boolean secondNF = isNonFungible(second);
 
-        if (StringUtils.isEmpty(firstId)
-                || StringUtils.isEmpty(secondId)
+        if (firstId.isEmpty()
+                || secondId.isEmpty()
                 || firstNF
                 || secondNF
                 || !firstId.equals(secondId))

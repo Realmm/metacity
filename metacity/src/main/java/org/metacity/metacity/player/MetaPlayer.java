@@ -15,6 +15,7 @@ import lombok.NonNull;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.inventory.*;
@@ -27,7 +28,6 @@ import org.metacity.metacity.token.TokenManager;
 import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.trade.TradeView;
 import org.metacity.metacity.util.QrUtils;
-import org.metacity.metacity.util.StringUtils;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.MetaConfig;
 import org.metacity.metacity.util.server.Translation;
@@ -39,6 +39,7 @@ import org.metacity.scoreboard.UberBoard;
 import org.metacity.util.CC;
 import org.metacity.util.Logger;
 
+import javax.annotation.Nullable;
 import java.awt.*;
 import java.math.BigDecimal;
 import java.util.List;
@@ -96,6 +97,10 @@ public class MetaPlayer {
         uberBoard.setColor(ChatColor.BLUE);
     }
 
+    public World world() {
+        return player().orElseThrow(() -> new IllegalStateException("Unable to get world from offline player")).getWorld();
+    }
+
     void onJoin() {
         questionablePlayer.getPlayer().ifPresent(p -> {
             this.globalAttachment = new MetaPermissionAttachment(p);
@@ -122,6 +127,7 @@ public class MetaPlayer {
             MetaCity.getInstance().chain().updateWallet(this, w -> this.wallet = w);
             validateInventory();
             initPermissions();
+            board().update();
         });
     }
 
@@ -176,32 +182,37 @@ public class MetaPlayer {
         }
     }
 
-    protected void setIdentity(Identity identity) {
-        identityId = null;  // Assume player has no identity
-        wallet = null;  //
-        linkingCode = null;  //
-        setLinkingCodeQr(null); //
-        identityLoaded = false; //
+    protected void setIdentity(Identity identity, @Nullable Runnable callback) {
+//        identityId = null;  // Assume player has no identity
+//        wallet = null;  //
+//        linkingCode = null;  //
+//        setLinkingCodeQr(null); //
+//        identityLoaded = false; //
         tokenWallet.clear();
-        if (globalAttachment != null) globalAttachment.clear();   // Clears all permissions
-        if (worldAttachment != null) worldAttachment.clear();    //
-        worldPermissionMap.clear(); //
-        this.identity = identity;
+        Bukkit.getScheduler().runTask(MetaCity.getInstance(), () -> {
+            if (globalAttachment != null) globalAttachment.clear();   // Clears all permissions
+            if (worldAttachment != null) worldAttachment.clear();    //
+            worldPermissionMap.clear(); //
 
-        if (identity == null) return;
+            this.identity = identity;
+            identityId = identity == null ? identityId : identity.getId();
+            wallet = identity == null ? wallet : identity.getWallet();
+            linkingCode = identity == null ? linkingCode : identity.getLinkingCode();
+            if (identity == null) setLinkingCodeQr(null); //
 
-        identityId = identity.getId();
-        wallet = identity.getWallet();
-        linkingCode = identity.getLinkingCode();
-        FetchQrImageTask.fetch(this, identity.getLinkingCodeQr());
+            if (identity == null) return;
 
-        identityLoaded = true;
+            FetchQrImageTask.fetch(this, identity.getLinkingCodeQr());
 
-        Chain chain = MetaCity.getInstance().chain();
-        chain.listenToIdentity(identityId);
+            identityLoaded = true;
 
-        chain.updateWallet(this, w -> this.wallet = w);
-        if (player().isPresent()) initPermissions();
+            Chain chain = MetaCity.getInstance().chain();
+            chain.listenToIdentity(identityId);
+
+            chain.updateWallet(this, w -> this.wallet = w);
+            if (player().isPresent()) initPermissions();
+            if (callback != null) callback.run();
+        });
     }
 
     /**
@@ -224,6 +235,7 @@ public class MetaPlayer {
 
     /**
      * Update the token with the given id, so the players inventory matches the new token id
+     *
      * @param id The token id
      */
     public void updateToken(String id) {
@@ -624,6 +636,7 @@ public class MetaPlayer {
 
     /**
      * Adds permissions to the token
+     *
      * @param tokenModel The token model to add the permissions to
      */
     public void addTokenPermissions(TokenModel tokenModel) {
@@ -657,8 +670,9 @@ public class MetaPlayer {
 
     /**
      * Add a permission to a token in a specific world
-     * @param perm The permission to add
-     * @param id The id of the token
+     *
+     * @param perm  The permission to add
+     * @param id    The id of the token
      * @param world The world to add the token permission for
      */
     public void addPermission(String perm, String id, String world) {
@@ -731,6 +745,7 @@ public class MetaPlayer {
 
     /**
      * Remove permissions from the token
+     *
      * @param tokenModel The token model to remove the permissions from
      */
     public void removeTokenPermissions(TokenModel tokenModel) {
@@ -759,7 +774,8 @@ public class MetaPlayer {
 
     /**
      * Remove permission from the world
-     * @param perm The permission to remove
+     *
+     * @param perm  The permission to remove
      * @param world The world to remove the permission from
      */
     public void removePermission(String perm, String world) {
@@ -849,7 +865,9 @@ public class MetaPlayer {
      * Reload the identity data for the player
      */
     public void reloadIdentity() {
-        MetaCity.getInstance().chain().updateIdentity(this, this::setIdentity);
+        MetaCity.getInstance().chain().updateIdentity(this, identity ->
+                setIdentity(identity, () -> board().update())
+        );
     }
 
     /**
@@ -858,7 +876,9 @@ public class MetaPlayer {
     public void unlink() {
         if (!isLinked()) return;
 
-        MetaCity.getInstance().chain().unlink(this, i -> setIdentity(null));
+        MetaCity.getInstance().chain().unlink(this, identity ->
+            setIdentity(null, () -> board().update())
+        );
     }
 
     /**
@@ -935,6 +955,7 @@ public class MetaPlayer {
 
     /**
      * Check if the user has been loaded
+     *
      * @return If the user has been loaded
      */
     public boolean isUserLoaded() {
@@ -943,6 +964,7 @@ public class MetaPlayer {
 
     /**
      * Check if the users identity has been loaded
+     *
      * @return If the users identity has been loaded
      */
     public boolean isIdentityLoaded() {
@@ -951,6 +973,7 @@ public class MetaPlayer {
 
     /**
      * Check if the user has been loaded and their identity has been loaded
+     *
      * @return If the user has been loaded their identity has been loaded
      */
     public boolean isLoaded() {
@@ -959,26 +982,34 @@ public class MetaPlayer {
 
     /**
      * Check if the users identity has been loaded and the wallet has been correctly loaded
+     *
      * @return If the users identity has been loaded had the wallet has been correctly loaded
      */
     public boolean isLinked() {
-        return isIdentityLoaded() && wallet != null && !StringUtils.isEmpty(wallet.getEthAddress());
+        return isIdentityLoaded() && wallet != null && !wallet.getEthAddress().isEmpty();
     }
 
     /**
      * Check if the user has a non-fungible token in their balance
+     *
      * @param id The id of te non-fungible token
      * @return If the user has a non-fungible token in their balance
      * @throws IllegalArgumentException If no token exists matching the id or the id given is not non-fungible or not a base model
-     * @throws NullPointerException 
      */
-    public boolean hasNonfungibleInstance(@NonNull String id) throws IllegalArgumentException, NullPointerException {
+    public boolean hasNonfungibleInstance(@NonNull String id) throws IllegalArgumentException {
         return hasNonfungibleInstance(id, null);
     }
 
+    /**
+     * Check if the user has a non-fungible token in their balance
+     *
+     * @param id The id of te non-fungible token
+     * @return If the user has a non-fungible token in their balance, ignoring mutable balance indexes
+     * @throws IllegalArgumentException If no token exists matching the id or the id given is not non-fungible or not a base model
+     */
     public boolean hasNonfungibleInstance(@NonNull String id,
-                                          Collection<String> ignoredIndices) throws IllegalArgumentException, NullPointerException {
-        TokenModel baseModel = bootstrap.getTokenManager().getToken(id);
+                                          Collection<String> ignoredIndices) throws IllegalArgumentException {
+        TokenModel baseModel = MetaCity.getInstance().getTokenManager().getToken(id);
         if (baseModel == null)
             throw new IllegalArgumentException(String.format("Token of id \"%s\" is not registered in token manager", id));
         else if (!baseModel.isNonfungible() || !baseModel.isBaseModel())
@@ -990,7 +1021,7 @@ public class MetaPlayer {
                 ? new HashSet<>()
                 : new HashSet<>(ignoredIndices);
 
-        TokenManager tokenManager = bootstrap.getTokenManager();
+        TokenManager tokenManager = MetaCity.getInstance().getTokenManager();
 
         List<MutableBalance> balances = tokenWallet.getBalances();
         for (MutableBalance balance : balances) {
@@ -1004,60 +1035,103 @@ public class MetaPlayer {
         return false;
     }
 
-    protected void cleanUp() {
-        PlayerInitializationTask.cleanUp(bukkitPlayer.getUniqueId());
+//    protected void cleanUp() {
+//        PlayerInitializationTask.cleanUp(uuid);
+//
+//        MetaCity.getInstance().chain().stopNotificationService(this);
+//
+//        PlayerChangedWorldEvent.getHandlerList().unregister(listener);
+//        player().ifPresent(p -> uberBoard.scoreboard().remove(p));
+//    }
 
-        NotificationsService service = bootstrap.getNotificationsService();
-
-        if (identityId != null) {
-            boolean listening = service.isSubscribedToIdentity(identityId);
-            if (listening)
-                service.unsubscribeToIdentity(identityId);
-        }
-
-        PlayerChangedWorldEvent.getHandlerList().unregister(listener);
-        bukkitPlayer = null;
-        uberBoard.scoreboard().remove(bukkitPlayer);
-    }
-
+    /**
+     * Get a list of players that this player has sent trade invites to
+     *
+     * @return A list of players that this player has sent trade invites to
+     */
     public List<MetaPlayer> getSentTradeInvites() {
         return sentTradeInvites;
     }
 
+    /**
+     * Get a list of players that this player has received trade invites from
+     *
+     * @return A list of players that this player has received trade invites from
+     */
     public List<MetaPlayer> getReceivedTradeInvites() {
         return receivedTradeInvites;
     }
 
+    /**
+     * Get the active trading view
+     *
+     * @return The active trading view
+     */
     public TradeView getActiveTradeView() {
         return activeTradeView;
     }
 
+    /**
+     * Set the active trading view
+     *
+     * @param activeTradeView The trading view to change to
+     */
     public void setActiveTradeView(TradeView activeTradeView) {
         this.activeTradeView = activeTradeView;
     }
 
+    /**
+     * Get the active wallet view
+     *
+     * @return The active wallet view
+     */
     public TokenWalletView getActiveWalletView() {
         return activeWalletView;
     }
 
+    /**
+     * Set the active wallet view
+     *
+     * @param activeWalletView The wallet view to set
+     */
     public void setActiveWalletView(TokenWalletView activeWalletView) {
         this.activeWalletView = activeWalletView;
     }
 
+    /**
+     * Get this users user id
+     *
+     * @return This users user id
+     */
     public Integer getUserId() {
         return userId;
     }
 
+    /**
+     * Get this users identity id
+     *
+     * @return This users identity id
+     */
     public Integer getIdentityId() {
         return identityId;
     }
 
+    /**
+     * Get this users wallet address
+     *
+     * @return This users wallet address
+     */
     public String getEthereumAddress() {
         return wallet == null
                 ? ""
                 : wallet.getEthAddress();
     }
 
+    /**
+     * Get the code required to link this player, something like 'ABC123'
+     *
+     * @return The code required to link this player
+     */
     public String getLinkingCode() {
         return linkingCode;
     }
@@ -1068,42 +1142,83 @@ public class MetaPlayer {
         }
     }
 
+    /**
+     * Get the linking code qr image, required for linking players to their wallet
+     *
+     * @return The qr image
+     */
     public Image getLinkingCodeQr() {
         synchronized (linkingCodeQrLock) {
             return linkingCodeQr;
         }
     }
 
+    /**
+     * Get this players Enjin coin balance (ENJ)
+     *
+     * @return This players Enjin coin balance
+     */
     public BigDecimal getEnjBalance() {
         return wallet == null
                 ? BigDecimal.ZERO
                 : wallet.getEnjBalance();
     }
 
+    /**
+     * Get this players Ethereum balance (ETH)
+     *
+     * @return This players Ethereum balance
+     */
     public BigDecimal getEthBalance() {
         return wallet == null
                 ? BigDecimal.ZERO
                 : wallet.getEthBalance();
     }
 
+    /**
+     * Get this players Enjin coin allowance, i.e how much they can spend
+     *
+     * @return Get this players Enjin coin allowance, i.e how much they can spend
+     */
     public BigDecimal getEnjAllowance() {
         return wallet == null
                 ? BigDecimal.ZERO
                 : wallet.getEnjAllowance();
     }
 
+    /**
+     * Check if this player has an allowance set
+     *
+     * @return If this player has an allowance set
+     */
     public boolean hasAllowance() {
         return wallet != null && wallet.getEnjAllowance().compareTo(BigDecimal.ZERO) > 0;
     }
 
+    /**
+     * Check if this player has any Ethereum (ETH)
+     *
+     * @return If this player has any Ethereum (ETH)
+     */
     public boolean hasEth() {
         return wallet != null && wallet.getEthBalance().compareTo(BigDecimal.ZERO) > 0;
     }
 
+    /**
+     * Check if this player can send any tokens
+     * The player must have an allowance and some ETH
+     *
+     * @return If this player can send any tokens
+     */
     public boolean canSend() {
         return hasAllowance() && hasEth();
     }
 
+    /**
+     * Get this players token wallet
+     *
+     * @return This players token wallet
+     */
     public TokenWallet getTokenWallet() {
         return tokenWallet;
     }

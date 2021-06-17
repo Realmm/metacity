@@ -155,9 +155,12 @@ public class TokenItemListener implements Listener {
             }
         }
 
-        Player player = metaPlayer.getBukkitPlayer();
-        player.getWorld().dropItemNaturally(player.getLocation(), dropItem);
-        inventory.clear(dropSlot);
+        final int slot = dropSlot;
+        final ItemStack item = dropItem;
+        metaPlayer.player().ifPresent(p -> {
+            p.getWorld().dropItemNaturally(p.getLocation(), item);
+            inventory.clear(slot);
+        });
     }
 
     @EventHandler

@@ -2,6 +2,7 @@ package org.metacity.scoreboard;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.craftbukkit.libs.jline.console.history.History;
 import org.bukkit.craftbukkit.libs.org.apache.commons.codec.language.bm.Lang;
 import org.bukkit.craftbukkit.libs.org.apache.commons.lang3.StringUtils;
 import org.bukkit.entity.Player;
@@ -29,8 +30,7 @@ public abstract class MetaScoreboard implements ScoreboardTemplate {
     private Scoreboard scoreboard;
     private Objective objective;
     private final Set<ScoreboardTeam> teams = new HashSet<>();
-    private @Nonnull
-    LineExecution title;
+    @Nonnull private LineExecution title;
     private final List<History> history = new ArrayList<>();
 
     public MetaScoreboard(@Nonnull String title) {
@@ -67,24 +67,13 @@ public abstract class MetaScoreboard implements ScoreboardTemplate {
     }
 
     public void remove(Player p) {
-        scoreboard = null;
         if (Bukkit.getScoreboardManager() != null && p != null)
             p.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
     }
 
     public void update(Player p) {
-        if (scoreboard == null || scoreboard.getObjectives().isEmpty()) {
-            initScoreboard();
-            initObjective();
-        }
-
-        System.out.println("name: " + objective.getName());
         String name = objective.getName().equals("obj") ? "obj2" : "obj";
-        System.out.println("nameNow: " + name);
         String criteria = "dummy";
-
-//        Objective remove = scoreboard.getObjective(name);
-//        if (remove != null) remove.unregister();
 
         Objective o = scoreboard.registerNewObjective(name, criteria, Util.color(title.execute(p)));
         o.setDisplaySlot(objective.getDisplaySlot());
@@ -93,7 +82,7 @@ public abstract class MetaScoreboard implements ScoreboardTemplate {
         List<ChatColor> usedForBlankLine = new ArrayList<>();
 
         List<Line> ordered = getOrderedLines(p);
-        List<DataHolder> holders = new ArrayList<>();
+        List<Holder> holders = new ArrayList<>();
 
         ordered.forEach(line -> {
             ScoreboardTeam sbTeam = getScoreboardTeam(line);
@@ -106,19 +95,28 @@ public abstract class MetaScoreboard implements ScoreboardTemplate {
             if (line instanceof BlankLine) {
                 List<ChatColor> colors = Arrays.asList(ChatColor.values());
                 Collections.shuffle(colors);
-                ChatColor color = colors.get(0);
-                while (usedForBlankLine.contains(color)) {
+                ChatColor[] color = {colors.get(0)};
+                ChatColor[] invalid = {
+                        ChatColor.STRIKETHROUGH,
+                        ChatColor.UNDERLINE,
+                        ChatColor.MAGIC,
+                        ChatColor.ITALIC,
+                        ChatColor.RESET
+                };
+                while (usedForBlankLine.contains(color[0]) || Arrays.stream(invalid).anyMatch(c -> c == color[0])) {
                     Collections.shuffle(colors);
-                    color = colors.get(0);
+                    color[0] = colors.get(0);
                 }
-                toAdd = color + " ";
-                usedForBlankLine.add(color);
-            } else toAdd = line.content(p);
+                toAdd = color[0] + " ";
+                usedForBlankLine.add(color[0]);
+            } else {
+                toAdd = line.content(p);
+            }
 
             if (getHistory(p).isPresent()) {
                 History h = getHistory(p).get();
                 if (!h.hasChanged(line.slot().slot, toAdd)) {
-                    holders.add(new DataHolder(sTeam, line, toAdd));
+                    holders.add(new Holder(sTeam, line, toAdd, new int[]{0}));
                     return;
                 }
             }
@@ -147,24 +145,21 @@ public abstract class MetaScoreboard implements ScoreboardTemplate {
 
             //Updates the objective with the appropriate score and entry
 
-            holders.add(new DataHolder(sTeam, line, toAdd));
+            holders.add(new Holder(sTeam, line, toAdd, new int[]{0}));
         });
 
         adjustSlots(holders);
 
         boolean[] updated = {false};
         holders.forEach(h -> {
-            historyMap.put(h.adjustedSlot, h.toAdd);
-            o.getScore(h.sTeam.slot().entry()).setScore(h.adjustedSlot);
-            System.out.println("Set scoreboard " + h.adjustedSlot + " " + h.toAdd);
+            historyMap.put(h.adjustedSlot[0], h.toAdd);
+            o.getScore(h.sTeam.slot().entry()).setScore(h.adjustedSlot[0]);
             updated[0] = true;
         });
 
         if (updated[0]) {
             Objective obj = objective;
             objective = o;
-            System.out.println("changing objectives");
-            scoreboard.getObjectives().forEach(ob -> System.out.println("obj: " + ob.getName()));
 
             try {
                 obj.unregister();
@@ -177,39 +172,13 @@ public abstract class MetaScoreboard implements ScoreboardTemplate {
 
         setHistory(p, new History(p, historyMap));
 
-
-        System.out.println("Set scoreboard2");
         p.setScoreboard(scoreboard);
-        System.out.println("score:: " + p.getScoreboard());
-
     }
 
-    public void reset() {
-        scoreboard.getObjectives().forEach(Objective::unregister);
-    }
-
-    private static class DataHolder {
-
-        private final ScoreboardTeam sTeam;
-        private final Line line;
-        private final String toAdd;
-        private int adjustedSlot;
-
-        private DataHolder(ScoreboardTeam sTeam, Line line, String toAdd) {
-            this.sTeam = sTeam;
-            this.line = line;
-            this.toAdd = toAdd;
-        }
-
+    private record Holder(ScoreboardTeam sTeam, Line line, String toAdd, int[] adjustedSlot) {
         private Slot slot() {
             return line.slot();
         }
-
-    }
-
-    private void updateScore(Map<Integer, String> historyMap, Objective o, ScoreboardTeam sTeam, Line line, String toAdd) {
-        historyMap.put(line.slot().slot, toAdd);
-        o.getScore(sTeam.slot().entry()).setScore(line.slot().slot);
     }
 
     /**
@@ -218,13 +187,13 @@ public abstract class MetaScoreboard implements ScoreboardTemplate {
      * @param lines The total amount of visible lines on the scoreboard
      * @return The adjusted score for this slot
      */
-    private void adjustSlots(List<DataHolder> lines) {
+    private void adjustSlots(List<Holder> lines) {
         if (lines.size() > Slot.values().length)
             throw new IllegalStateException("Cannot adjust slot for lines of greater than " + Slot.values().length + ", received " + lines + " lines");
         int i = 0;
-        Comparator<DataHolder> comparator = Comparator.comparing(DataHolder::slot);
-        for (DataHolder holder : lines.stream().sorted(comparator.reversed()).collect(Collectors.toList())) {
-            holder.adjustedSlot = i++;
+        Comparator<Holder> comparator = Comparator.comparing(Holder::slot);
+        for (Holder holder : lines.stream().sorted(comparator.reversed()).collect(Collectors.toList())) {
+            holder.adjustedSlot[0] = i++;
         }
     }
 
@@ -234,7 +203,9 @@ public abstract class MetaScoreboard implements ScoreboardTemplate {
         for (Line line : getLines(p).stream().sorted(lineComparator).collect(Collectors.toList())) {
             if (!line.isVisible()) continue;
             if (line.content(p) == null) continue;
-            lines.add(line);
+            if (line.content(p).equals("")) {
+                lines.add(new BlankLine(line.slot()));
+            } else lines.add(line);
         }
         return lines;
     }

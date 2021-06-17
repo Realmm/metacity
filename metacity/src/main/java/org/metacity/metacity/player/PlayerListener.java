@@ -19,9 +19,11 @@ class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerWorldChanged(PlayerChangedWorldEvent event) {
-        if (event.getPlayer() != p.getBukkitPlayer()) return;
+        p.player().ifPresent(p -> {
+            if (event.getPlayer() != p) return;
 
-        p.setWorldAttachment(p.getBukkitPlayer().getWorld().getName());
+            this.p.setWorldAttachment(p.getWorld().getName());
+        });
     }
 
 }

@@ -26,7 +26,6 @@ import org.metacity.metacity.token.MetaTokenView;
 import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.token.TokenManager;
 import org.metacity.metacity.token.TokenModel;
-import org.metacity.metacity.util.StringUtils;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.UiUtils;
 import org.metacity.metacity.util.server.Translation;
@@ -66,12 +65,12 @@ public class TokenWalletView extends ChestMenu implements MetaTokenView {
 
     @Override
     public void validateInventory() {
-        repopulate(owner.getBukkitPlayer());
+        owner.player().ifPresent(this::repopulate);
     }
 
     @Override
     public void updateInventory() {
-        repopulate(owner.getBukkitPlayer());
+        owner.player().ifPresent(this::repopulate);
     }
 
     private void init() {
@@ -308,43 +307,45 @@ public class TokenWalletView extends ChestMenu implements MetaTokenView {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onTokenDeposit(InventoryClickEvent event) {
-        if (owner.getBukkitPlayer() != event.getWhoClicked())
-            return;
+        owner.player().ifPresent(p -> {
+            if (p != event.getWhoClicked()) return;
 
-        if (event.getClickedInventory() instanceof PlayerInventory) {
-            ItemStack is = event.getCurrentItem();
-            String id = TokenUtils.getTokenID(is);
-            String index = TokenUtils.getTokenIndex(is);
-            if (StringUtils.isEmpty(id) || StringUtils.isEmpty(index))
-                return;
+            if (event.getClickedInventory() instanceof PlayerInventory) {
+                ItemStack is = event.getCurrentItem();
+                String id = TokenUtils.getTokenID(is);
+                String index = TokenUtils.getTokenIndex(is);
+                if (id == null || id.isEmpty() || index == null || index.isEmpty()) return;
 
-            MetaPlayer metaPlayer = plugin.getPlayerManager()
-                    .getPlayer((Player) event.getWhoClicked())
-                    .orElse(null);
-            if (metaPlayer == null)
-                return;
-
-            int amount;
-            switch (event.getClick()) {
-                case LEFT: // Deposits one token
-                    amount = 1;
-                    break;
-                case RIGHT: // Deposits a split stack
-                    amount = (int) Math.ceil(Math.min(is.getAmount(), is.getMaxStackSize()) / 2.0);
-                    break;
-                case SHIFT_LEFT: // Deposits the entire stack
-                case SHIFT_RIGHT:
-                    amount = is.getAmount();
-                    break;
-                default:
+                MetaPlayer metaPlayer = plugin.getPlayerManager()
+                        .getPlayer((Player) event.getWhoClicked())
+                        .orElse(null);
+                if (metaPlayer == null)
                     return;
-            }
 
-            MutableBalance balance = metaPlayer.getTokenWallet().getBalance(id, index);
-            balance.deposit(amount);
-            is.setAmount(is.getAmount() - amount);
-            Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> repopulate(metaPlayer.getBukkitPlayer()));
-        }
+                int amount;
+                switch (event.getClick()) {
+                    case LEFT: // Deposits one token
+                        amount = 1;
+                        break;
+                    case RIGHT: // Deposits a split stack
+                        amount = (int) Math.ceil(Math.min(is.getAmount(), is.getMaxStackSize()) / 2.0);
+                        break;
+                    case SHIFT_LEFT: // Deposits the entire stack
+                    case SHIFT_RIGHT:
+                        amount = is.getAmount();
+                        break;
+                    default:
+                        return;
+                }
+
+                MutableBalance balance = metaPlayer.getTokenWallet().getBalance(id, index);
+                balance.deposit(amount);
+                is.setAmount(is.getAmount() - amount);
+                metaPlayer.player().ifPresent(pl -> {
+                    Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> repopulate(pl));
+                });
+            }
+        });
     }
 
     @Override
@@ -354,10 +355,13 @@ public class TokenWalletView extends ChestMenu implements MetaTokenView {
     }
 
     private void closeMenuAction(Player player, AbstractMenu menu) {
-        if (player != owner.getBukkitPlayer() || this != owner.getActiveWalletView())
-            return;
+        owner.player().ifPresent(p -> {
+            if (player != p || this != owner.getActiveWalletView())
+                return;
 
-        owner.setActiveWalletView(null);
+            owner.setActiveWalletView(null);
+        });
+
     }
 
     protected ItemStack createPageBackItemStack() {

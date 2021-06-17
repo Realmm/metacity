@@ -2,6 +2,7 @@ package org.metacity.metacity;
 
 import org.bukkit.Bukkit;
 import org.metacity.core.CorePlugin;
+import org.metacity.metacity.cmd.enj.MetaCmd;
 import org.metacity.metacity.listeners.QrItemListener;
 import org.metacity.metacity.listeners.TokenItemListener;
 import org.metacity.metacity.player.PlayerManager;
@@ -9,7 +10,6 @@ import org.metacity.metacity.storage.ChainDatabase;
 import org.metacity.metacity.token.TokenManager;
 import org.metacity.metacity.trade.TradeManager;
 import org.metacity.metacity.trade.TradeUpdateTask;
-import org.metacity.metacity.util.StringUtils;
 import org.metacity.metacity.util.server.MetaConfig;
 import org.metacity.metacity.world.Generator;
 
@@ -86,6 +86,8 @@ public class MetaCity extends CorePlugin {
             tokenManager = new TokenManager();
             tradeManager = new TradeManager();
             tokenManager.loadTokens();
+            tokenManager.loadLocalTokens();
+
 
             // Register Listeners
             Bukkit.getPluginManager().registerEvents(playerManager, plugin);
@@ -96,8 +98,9 @@ public class MetaCity extends CorePlugin {
             // Register Commands
 //            PluginCommand pluginCommand = Objects.requireNonNull(plugin.getCommand("meta"),
 //                    "Missing \"meta\" command definition in plugin.yml");
-//            CmdMeta cmdEnj = new CmdMeta(this);
-//            pluginCommand.setExecutor(cmdEnj);
+//            CmdMeta cmdMeta = new CmdMeta();
+//            pluginCommand.setExecutor(cmdMeta);
+            new MetaCmd().register();
 
 //            Command.builder(Player.class, "meta")
 //                    .addSubCommand(b -> b.build())
@@ -128,7 +131,7 @@ public class MetaCity extends CorePlugin {
 
     private boolean validateConfig() {
         boolean validAppId = MetaConfig.getAppId() >= 0;
-        boolean validSecret = !StringUtils.isEmpty(MetaConfig.getAppSecret());
+        boolean validSecret = !MetaConfig.getAppSecret().isEmpty();
         boolean validDevAddress = MetaConfig.WALLET_ADDRESS != null && !MetaConfig.WALLET_ADDRESS.isEmpty();
 
         if (!validAppId)

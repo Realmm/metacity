@@ -3,8 +3,6 @@ package org.metacity.metacity;
 import com.enjin.sdk.TrustedPlatformClient;
 import com.enjin.sdk.TrustedPlatformClientBuilder;
 import com.enjin.sdk.graphql.GraphQLResponse;
-import com.enjin.sdk.http.HttpResponse;
-import com.enjin.sdk.models.AccessToken;
 import com.enjin.sdk.models.balance.Balance;
 import com.enjin.sdk.models.balance.GetBalances;
 import com.enjin.sdk.models.identity.CreateIdentity;
@@ -31,11 +29,21 @@ import com.enjin.sdk.models.wallet.Wallet;
 import com.enjin.sdk.services.notification.NotificationsService;
 import com.enjin.sdk.services.notification.PusherNotificationService;
 import com.enjin.sdk.utils.LoggerProvider;
+import de.tr7zw.changeme.nbtapi.NBTContainer;
+import de.tr7zw.changeme.nbtapi.NBTItem;
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
+import org.bukkit.conversations.Conversable;
+import org.bukkit.conversations.Conversation;
+import org.bukkit.conversations.ConversationAbandonedEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Consumer;
-import org.metacity.metacity.MetaCity;
+import org.metacity.metacity.conversations.Conversations;
+import org.metacity.metacity.conversations.prompts.TokenIdPrompt;
+import org.metacity.metacity.conversations.prompts.TokenIndexPrompt;
+import org.metacity.metacity.conversations.prompts.TokenNicknamePrompt;
+import org.metacity.metacity.conversations.prompts.TokenTypePrompt;
 import org.metacity.metacity.exceptions.AuthenticationException;
 import org.metacity.metacity.exceptions.GraphQLException;
 import org.metacity.metacity.exceptions.NetworkException;
@@ -45,17 +53,18 @@ import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.token.TokenManager;
 import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.trade.TradeSession;
-import org.metacity.metacity.util.StringUtils;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.MetaConfig;
 import org.metacity.metacity.util.server.Translation;
 import org.metacity.util.Logger;
 
+import javax.annotation.Nullable;
+import java.math.BigInteger;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
@@ -71,21 +80,255 @@ public class Chain {
                 .readTimeout(1, TimeUnit.MINUTES)
                 .build();
 
-        authClient();
+        authClient(() -> fetchPlatformDetails(this::startNotificationService));
         long interval = TimeUnit.HOURS.toMillis(6) / 50;
-        Bukkit.getScheduler().runTaskTimerAsynchronously(MetaCity.getInstance(), this::authClient, interval, interval);
-        fetchPlatformDetails();
-        startNotificationService();
+        Bukkit.getScheduler().runTaskTimerAsynchronously(MetaCity.getInstance(), () -> authClient(null), interval, interval);
     }
 
-    public void updateWallet(MetaPlayer p, Consumer<Wallet> consumer) {
-        if (!p.wallet().isPresent()) throw new IllegalStateException("No wallet present, must load identity first");
-        p.wallet().ifPresent(w -> {
-            if (StringUtils.isEmpty(w.getEthAddress()))
-                throw new IllegalStateException("Wallet address is empty, unable to update wallet");
-        });
-        Wallet w = p.wallet().get();
+    public void sendToken(@Nullable MetaPlayer sender, String targetAddress, String tokenId, @Nullable String tokenIndex, int amount) {
+        MetaCity.getInstance().getPlayerManager().getPlayer(targetAddress).ifPresent(target ->
+                sendToken(sender, target, tokenId, tokenIndex, amount));
+    }
 
+    public void sendToken(@Nullable MetaPlayer sender, MetaPlayer target, String tokenId, @Nullable String tokenIndex, int amount) {
+        if (sender != null && !sender.identity().isPresent())
+            throw new IllegalStateException("No wallet address loaded for sender");
+        if (!target.identity().isPresent()) throw new IllegalStateException("No wallet address loaded for target");
+        TokenModel token = MetaCity.getInstance().getTokenManager().getToken(tokenId);
+        if (token == null) throw new IllegalStateException("No token matching the provided id");
+        if (token.isNonfungible() && amount > 1)
+            throw new IllegalStateException("Unable to send more than 1 of a non-fungible instance");
+
+        SendTokenData data = tokenIndex == null
+                ? SendTokenData.builder()
+                .recipientIdentityId(target.getIdentityId())
+                .tokenId(tokenId)
+                .value(amount)
+                .build()
+                : SendTokenData.builder()
+                .recipientIdentityId(target.getIdentityId())
+                .tokenId(tokenId)
+                .tokenIndex(tokenIndex)
+                .value(amount)
+                .build();
+
+        String walletAddress = sender == null ?
+                MetaConfig.WALLET_ADDRESS :
+                sender.identity().get().getWallet().getEthAddress();
+
+        CommandSender s = sender == null ? Bukkit.getConsoleSender() : sender.player().orElseThrow(() ->
+                new IllegalStateException("No sender for sending token"));
+
+        client.getRequestService().createRequestAsync(new CreateRequest()
+                        .appId(client.getAppId())
+                        .ethAddr(walletAddress)
+                        .sendToken(data),
+                r -> {
+                    if (!r.isSuccess()) {
+                        NetworkException exception = new NetworkException(r.code());
+                        Translation.ERRORS_EXCEPTION.send(s, exception.getMessage());
+                        throw exception;
+                    }
+
+                    GraphQLResponse<Transaction> graphQLResponse = r.body();
+                    if (!graphQLResponse.isSuccess()) {
+                        GraphQLException exception = new GraphQLException(graphQLResponse.getErrors());
+                        Translation.ERRORS_EXCEPTION.send(s, exception.getMessage());
+                        throw exception;
+                    }
+
+                    Translation.COMMAND_SEND_SUBMITTED.send(s);
+                });
+    }
+
+    public void startConversation(MetaPlayer player, ItemStack item, String tokenId) {
+        player.player().ifPresent(sender -> {
+            TokenManager tm = MetaCity.getInstance().getTokenManager();
+            TokenModel model = tm.getToken(tokenId);
+
+            if (model == null) {
+                client.getTokenService().getTokenAsync(new GetToken().tokenId(tokenId),
+                        r -> {
+                            if (r.isEmpty()) return;
+
+                            GraphQLResponse<Token> resGql = r.body();
+                            if (!resGql.isSuccess()) return;
+
+                            Token token = resGql.getData();
+                            Bukkit.getScheduler().runTask(MetaCity.getInstance(), () ->
+                                    startConversation(sender, item, tokenId, token.getNonFungible(), false));
+                        });
+            } else {
+                startConversation(sender, item, model.getId(), model.isNonfungible(), true);
+            }
+        });
+    }
+
+    private void startConversation(Conversable sender, ItemStack ref, String id, boolean nft, boolean baseExists) {
+        // Setup Conversation
+        Conversations conversations = new Conversations(MetaCity.getInstance(), nft, baseExists);
+        Conversation conversation = conversations.startTokenCreationConversation(sender);
+        conversation.addConversationAbandonedListener(this::executeAbandonedListener);
+        conversation.getContext().setSessionData("sender", sender);
+        conversation.getContext().setSessionData("nbt-item", NBTItem.convertItemtoNBT(ref));
+        conversation.getContext().setSessionData(TokenTypePrompt.KEY, nft);
+        conversation.getContext().setSessionData(TokenIdPrompt.KEY, id);
+        conversation.begin();
+    }
+
+    private void executeAbandonedListener(ConversationAbandonedEvent event) {
+        // Check if the conversation completed gracefully.
+        if (!event.gracefulExit()) return;
+
+        // Load managers and data store
+        Map<Object, Object> data = event.getContext().getAllSessionData();
+        TokenManager tokenManager = MetaCity.getInstance().getTokenManager();
+        // Load data from conversation context
+        Player sender = (Player) data.get("sender");
+        boolean nft = (boolean) data.get(TokenTypePrompt.KEY);
+        String id = (String) data.get(TokenIdPrompt.KEY);
+        BigInteger index = (BigInteger) data.getOrDefault(TokenIndexPrompt.KEY, BigInteger.ZERO);
+        // Convert index from decimal to hexadecimal representation
+        String indexHex = index == null ? null : TokenUtils.bigIntToIndex(index);
+
+        // Check whether the token can be created if another already exists.
+        // This will only ever pass if the token is an nft, the index is non-zero
+        // and doesn't exist in the database.
+        if (tokenManager.hasToken(id)) {
+            TokenModel base = tokenManager.getToken(id);
+
+            if (base.isNonfungible() && !nft) {
+                Translation.COMMAND_TOKEN_ISFUNGIBLE.send(sender);
+                return;
+            } else if (!base.isNonfungible()) {
+                Translation.COMMAND_TOKEN_CREATE_DUPLICATE.send(sender);
+                return;
+            } else if (tokenManager.hasToken(TokenUtils.createFullId(id, indexHex))) {
+                Translation.COMMAND_TOKEN_CREATENFT_DUPLICATE.send(sender);
+                return;
+            }
+        } else if (nft && !index.equals(BigInteger.ZERO)) {
+            Translation.COMMAND_TOKEN_CREATENFT_MISSINGBASE.send(sender);
+            return;
+        }
+
+        // Start token model creation process
+        NBTContainer nbt = (NBTContainer) data.get("nbt-item");
+        TokenModel.TokenModelBuilder modelBuilder = TokenModel.builder()
+                .id(id)
+                .nonfungible(nft)
+                .nbt(nbt.toString());
+
+        // Add index if creating an nft
+        if (nft) {
+            modelBuilder.index(indexHex);
+        }
+
+        // Validate and add nickname if present
+        if (data.containsKey(TokenNicknamePrompt.KEY)) {
+            String nickname = (String) data.get(TokenNicknamePrompt.KEY);
+
+            if (!TokenManager.isValidAlternateId(nickname)) {
+                Translation.COMMAND_TOKEN_NICKNAME_INVALID.send(sender);
+                return;
+            }
+
+            modelBuilder.alternateId(nickname);
+        }
+
+        // Create token model and save to database
+        TokenModel model = modelBuilder.build();
+        int result = tokenManager.saveToken(model);
+
+        // Inform sender of result or log to console if unknown
+        switch (result) {
+            case TokenManager.TOKEN_CREATE_SUCCESS:
+                Translation.COMMAND_TOKEN_CREATE_SUCCESS.send(sender);
+                break;
+            case TokenManager.TOKEN_CREATE_FAILED:
+                Translation.COMMAND_TOKEN_CREATE_FAILED.send(sender);
+                break;
+            case TokenManager.TOKEN_ALREADYEXISTS:
+                Translation translation = nft
+                        ? Translation.COMMAND_TOKEN_CREATENFT_DUPLICATE
+                        : Translation.COMMAND_TOKEN_CREATE_DUPLICATE;
+                translation.send(sender);
+                break;
+            case TokenManager.TOKEN_INVALIDDATA:
+                Translation.COMMAND_TOKEN_INVALIDDATA.send(sender);
+                break;
+            case TokenManager.TOKEN_CREATE_FAILEDNFTBASE:
+                Translation.COMMAND_TOKEN_CREATENFT_BASEFAILED.send(sender);
+                break;
+            case TokenManager.TOKEN_DUPLICATENICKNAME:
+                Translation.COMMAND_TOKEN_NICKNAME_DUPLICATE.send(sender);
+                break;
+            case TokenManager.TOKEN_INVALIDNICKNAME:
+                Translation.COMMAND_TOKEN_NICKNAME_INVALID.send(sender);
+                break;
+            default:
+                Logger.debug(String.format("Unhandled result when creating token (status: %d)", result));
+                break;
+        }
+    }
+
+    public void getURI(CommandSender sender, String tokenId) {
+        client.getTokenService().getTokenAsync(new GetToken()
+                        .tokenId(tokenId)
+                        .withItemUri(),
+                r -> {
+                    if (!r.isSuccess()) {
+                        NetworkException exception = new NetworkException(r.code());
+                        Translation.ERRORS_EXCEPTION.send(sender, exception.getMessage());
+                        throw exception;
+                    }
+
+                    GraphQLResponse<Token> graphQLResponse = r.body();
+                    if (!graphQLResponse.isSuccess()) {
+                        GraphQLException exception = new GraphQLException(graphQLResponse.getErrors());
+                        Translation.ERRORS_EXCEPTION.send(sender, exception.toString());
+                        throw exception;
+                    }
+
+                    String metadataURI = graphQLResponse.getData().getItemURI();
+                    if (metadataURI.isEmpty()) {
+                        Translation.COMMAND_TOKEN_GETURI_EMPTY_1.send(sender);
+                        Translation.COMMAND_TOKEN_GETURI_EMPTY_2.send(sender);
+                        return;
+                    }
+
+                    int result = MetaCity.getInstance().getTokenManager().updateMetadataURI(tokenId, metadataURI);
+                    switch (result) {
+                        case TokenManager.TOKEN_NOSUCHTOKEN:
+                            Translation.COMMAND_TOKEN_NOSUCHTOKEN.send(sender);
+                            break;
+                        case TokenManager.TOKEN_UPDATE_SUCCESS:
+                            Translation.COMMAND_TOKEN_GETURI_SUCCESS.send(sender);
+                            break;
+                        case TokenManager.TOKEN_ISNOTBASE:
+                            Translation.COMMAND_TOKEN_ISNONFUNGIBLEINSTANCE.send(sender);
+                            break;
+                        case TokenManager.TOKEN_UPDATE_FAILED:
+                            Translation.COMMAND_TOKEN_GETURI_FAILED.send(sender);
+                            break;
+                        default:
+                            Logger.debug(String.format("Unhandled result when getting the URI (status: %d)", result));
+                            break;
+                    }
+                });
+    }
+
+    /**
+     * Update the players wallet cache
+     * This will only take effect if the players wallet has been loaded by loading the players identity
+     * and the player has already linked their wallet
+     * @param p The player to update
+     * @param consumer The consumer to accept the wallet if found
+     */
+    public void updateWallet(MetaPlayer p, Consumer<Wallet> consumer) {
+        if (!p.wallet().isPresent() || p.wallet().get().getEthAddress().isEmpty()) return;
+
+        Wallet w = p.wallet().get();
         try {
             client
                     .getBalanceService()
@@ -216,7 +459,7 @@ public class Chain {
     }
 
     public void sendCompleteRequest(TradeSession session, String tradeId) {
-        if (session == null || StringUtils.isEmpty(tradeId))
+        if (session == null || tradeId.isEmpty())
             return;
 
         Optional<Player> inviter = Optional.ofNullable(Bukkit.getPlayer(session.getInviterUuid()));
@@ -249,7 +492,7 @@ public class Chain {
         );
     }
 
-    public void send(MetaPlayer inviter, MetaPlayer invitee, List<ItemStack> tokens) {
+    public void sendTrade(MetaPlayer inviter, MetaPlayer invitee, List<ItemStack> tokens) {
         CreateRequest input = new CreateRequest()
                 .appId(client.getAppId())
                 .identityId(inviter.getIdentityId());
@@ -387,7 +630,7 @@ public class Chain {
         });
     }
 
-    private void authClient() {
+    private void authClient(@Nullable Runnable onAuth) {
         try {
             // Attempt to authenticate the client using an app secret
             client.authAppAsync(MetaConfig.getAppId(), MetaConfig.getAppSecret(), r -> {
@@ -396,6 +639,7 @@ public class Chain {
                     throw new AuthenticationException(r.code());
                 } else if (r.body().isSuccess()) {
                     Logger.info("[CONNECTED] Ethereum Blockchain Authenticated");
+                    if (onAuth != null) onAuth.run();
                 }
             });
         } catch (Exception e) {
@@ -414,7 +658,7 @@ public class Chain {
         }
     }
 
-    private void fetchPlatformDetails() {
+    private void fetchPlatformDetails(@Nullable Runnable onComplete) {
         try {
             // Fetch the platform details
             client.getPlatformService()
@@ -427,6 +671,7 @@ public class Chain {
                             throw new GraphQLException(graphQLResponse.getErrors());
 
                         platformDetails = graphQLResponse.getData();
+                        if (onComplete != null) onComplete.run();
                     });
         } catch (Exception ex) {
             throw new NetworkException(ex);
@@ -445,6 +690,13 @@ public class Chain {
         } catch (Exception ex) {
             throw new NotificationServiceException(ex);
         }
+    }
+
+    public void stopNotificationService(MetaPlayer p) {
+        p.identity().ifPresent(i -> {
+            boolean listening = notificationsService.isSubscribedToIdentity(i.getId());
+            if (listening) notificationsService.unsubscribeToIdentity(i.getId());
+        });
     }
 
 }

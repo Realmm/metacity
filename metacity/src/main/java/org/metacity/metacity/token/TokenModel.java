@@ -9,23 +9,22 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import lombok.Setter;
 import lombok.Synchronized;
 import lombok.ToString;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.metacity.metacity.MetaCity;
-import org.metacity.metacity.util.StringUtils;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.wallet.TokenWalletViewState;
 import org.metacity.util.Logger;
 
+import javax.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.InputStreamReader;
@@ -45,7 +44,7 @@ public class TokenModel {
 
     @Getter
     private transient boolean loaded;
-    private transient NBTContainer nbtContainer;
+//    private transient NBTContainer nbtContainer;
     private transient NBTItem nbtItem;
     @Getter(onMethod_ = {@Nullable, @Synchronized("uriLock")})
     @Setter(value = AccessLevel.PROTECTED, onMethod_ = {@Synchronized("uriLock")})
@@ -182,11 +181,17 @@ public class TokenModel {
     protected void load() {
         loadNameFromURI();
 
-        if (StringUtils.isEmpty(nbt))
-            return;
+        if (nbt.isEmpty()) return;
 
-        nbtContainer = new NBTContainer(nbt);
-        nbtItem = new NBTItem(NBTItem.convertNBTtoItem(nbtContainer));
+        System.out.println("NBT: " + nbt);
+        System.out.println("NBTID: " + id);
+        System.out.println("NBTINDEX: " + index);
+        System.out.println("NBTNONFUNG: " + nonfungible);
+
+//        nbtContainer = new NBTContainer(nbt);
+        ItemStack stone = new ItemStack(Material.STONE);
+        nbtItem = new NBTItem(stone);
+        nbtItem.addCompound(nbt);
         nbtItem.setString(NBT_ID, id);
         nbtItem.setString(NBT_INDEX, index);
         nbtItem.setBoolean(NBT_NONFUNGIBLE, nonfungible);
@@ -278,7 +283,7 @@ public class TokenModel {
         }
 
         // Determines if a new-line should be added after the data
-        if (lore.size() > lineNumber && !StringUtils.isEmpty(lore.get(lineNumber).trim()))
+        if (lore.size() > lineNumber && !lore.get(lineNumber).trim().isEmpty())
             lore.add(lineNumber, "");
 
         meta.setLore(lore);
@@ -325,7 +330,8 @@ public class TokenModel {
 
         ItemStack is;
         if (raw) {
-            NBTItem nbtItem = new NBTItem(NBTItem.convertNBTtoItem(nbtContainer));
+//            new NBTItem(NBTItem.convertNBTtoItem(nbtContainer));
+            NBTItem nbtItem = new NBTItem(this.nbtItem.getItemStack(nbt));
             nbtItem.removeKey(NBT_ID);
             nbtItem.removeKey(NBT_INDEX);
             nbtItem.removeKey(NBT_NONFUNGIBLE);
@@ -335,7 +341,7 @@ public class TokenModel {
             List<String> data = new ArrayList<>();
 
             String name = getName();
-            if (!StringUtils.isEmpty(name))
+            if (!name.isEmpty())
                 data.add(name);
 
             is = addDataToLore(data);
@@ -366,10 +372,10 @@ public class TokenModel {
         List<String> data = new ArrayList<>();
 
         String name = getName();
-        if (!StringUtils.isEmpty(name))
+        if (!name.isEmpty())
             data.add(name);
         String state = getWalletViewString();
-        if (!StringUtils.isEmpty(state))
+        if (!state.isEmpty())
             data.add(state);
 
         return addDataToLore(data);
@@ -498,7 +504,7 @@ public class TokenModel {
     }
 
     public String getName() {
-        String id = StringUtils.isEmpty(nameFromURI)
+        String id = nameFromURI.isEmpty()
                 ? this.id
                 : nameFromURI;
         String name = nonfungible

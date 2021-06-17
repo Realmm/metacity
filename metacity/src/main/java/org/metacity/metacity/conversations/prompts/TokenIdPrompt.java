@@ -5,7 +5,7 @@ import org.bukkit.conversations.Prompt;
 import org.bukkit.conversations.RegexPrompt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.metacity.metacity.EnjinCraft;
+import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.util.ValidationUtils;
 
 public class TokenIdPrompt extends RegexPrompt {
@@ -36,7 +36,7 @@ public class TokenIdPrompt extends RegexPrompt {
             boolean nft = (boolean) context.getAllSessionData().getOrDefault(TokenTypePrompt.KEY, false);
 
             if (nft) {
-                boolean baseExists = EnjinCraft.bootstrap().get().getTokenManager().hasToken(id);
+                boolean baseExists = MetaCity.getInstance().getTokenManager().hasToken(id);
                 next = baseExists ? new TokenIndexPrompt() : new TokenNicknamePrompt();
             } else {
                 next = new TokenNicknamePrompt();

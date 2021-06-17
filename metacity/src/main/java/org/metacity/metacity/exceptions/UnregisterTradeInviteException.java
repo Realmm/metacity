@@ -6,8 +6,8 @@ public class UnregisterTradeInviteException extends RuntimeException {
 
     public UnregisterTradeInviteException(MetaPlayer inviter, MetaPlayer invitee) {
         super(String.format("Failed to remove trade invites for either inviter (%s) or invitee (%s) where one was suppose to exist",
-                inviter.getBukkitPlayer().getName(),
-                invitee.getBukkitPlayer().getName()));
+                inviter.uuid(),
+                invitee.uuid()));
     }
 
 }

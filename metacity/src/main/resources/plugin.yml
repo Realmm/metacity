@@ -5,11 +5,11 @@ desc: MetaCity
 version: 1.0
 softdepend: [Vault, PlaceholderAPI]
 depend: [Core]
-api-version: 1.16
+api-version: 1.17
 
-commands:
-  meta:
-    description: Reference command for MetaCity.
+#commands:
+#  meta:
+#    description: Reference command for MetaCity.
 permissions:
   enjincraft.*:
     default: op

@@ -54,7 +54,7 @@ public class PlayerInitializationTask extends BukkitRunnable {
                 if (player.isUserLoaded() && !player.isIdentityLoaded()) {
                     chain.updateIdentity(player, i -> {
                         if (i != null) {
-                            player.setIdentity(i);
+                            player.setIdentity(i, () -> player.board().update());
                             cancel();
                         }
                     });
@@ -65,7 +65,6 @@ public class PlayerInitializationTask extends BukkitRunnable {
         }
 
         player.player().ifPresent(p -> {
-            player.board().update();
             player.onJoin();
         });
 

@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 
 public enum Translation {
 
-    COMMAND_API_BADUSAGE(Lang.COMMAND_LINK_SUCCESS, Lang::getString, "wallet"),
+    COMMAND_API_BADUSAGE(Lang.COMMAND_API_BADUSAGE, Lang::getString),
     COMMAND_API_USAGE(Lang.COMMAND_API_USAGE, Lang::getString, "usage"),
     COMMAND_API_REQUIREMENTS_INVALIDPLAYER(Lang.COMMAND_API_REQUIREMENTS_INVALIDPLAYER, Lang::getString),
     COMMAND_API_REQUIREMENTS_INVALIDCONSOLE(Lang.COMMAND_API_REQUIREMENTS_INVALIDCONSOLE, Lang::getString),
@@ -199,7 +199,7 @@ public enum Translation {
     }
 
     public void send(MetaPlayer p, String... toReplace) {
-        p.getBukkitPlayer().sendMessage(translation(toReplace));
+        p.player().ifPresent(pl -> pl.sendMessage(translation(toReplace)));
     }
 
     public void send(Player p, String... toReplace) {

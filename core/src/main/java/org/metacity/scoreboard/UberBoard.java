@@ -23,13 +23,13 @@ public class UberBoard {
 
     private String prefix;
     private boolean updateNametag = true, updateTablist = true;
-    @Nonnull private final OfflinePlayer p;
+    @Nonnull private final UUID uuid;
     private final MetaScoreboard scoreboard;
 
     private static final Map<UUID, UberBoard> boardMap = new HashMap<>();
 
     private UberBoard(@Nonnull OfflinePlayer p, MetaScoreboard scoreboard) {
-        this.p = p;
+        this.uuid = p.getUniqueId();
         this.scoreboard = scoreboard;
     }
 
@@ -62,15 +62,19 @@ public class UberBoard {
         return getPrefix().isPresent() ? getPrefix().get() : ChatColor.WHITE.toString();
     }
 
+    private OfflinePlayer offlinePlayer() {
+        return Bukkit.getOfflinePlayer(uuid);
+    }
+
     private void updateNameTag() {
-        if (!p.isOnline()) return;
-        Player player = (Player) p;
-        Team rankTeam = getTeam(p);
+        if (!offlinePlayer().isOnline()) return;
+        Player player = (Player) offlinePlayer();
+        Team rankTeam = getTeam(player);
         rankTeam.addEntry(player.getName());
 
         Bukkit.getOnlinePlayers()
                 .stream()
-                .filter(o -> !o.getUniqueId().equals(p.getUniqueId()))
+                .filter(o -> !o.getUniqueId().equals(uuid))
                 .forEach(o -> {
                     Team team = getTeam(o);
                     UberBoard playerBoard = boardMap.getOrDefault(o.getUniqueId(), null);
@@ -153,8 +157,8 @@ public class UberBoard {
      * tab list
      */
     public void update() {
-        if (!p.isOnline()) return;
-        Player player = (Player) p;
+        if (!offlinePlayer().isOnline()) return;
+        Player player = (Player) offlinePlayer();
         scoreboard.update(player);
         if (updateNametag) {
             updateNameTag();
@@ -162,7 +166,7 @@ public class UberBoard {
         if (updateTablist) {
             String color = ChatColor.WHITE.toString();
             if (getPrefix().isPresent()) color = getPrefix().get();
-            String tabName = StringUtils.left(color + p.getName(), 16);
+            String tabName = StringUtils.left(color + player.getName(), 16);
             player.setPlayerListName(tabName);
         }
     }

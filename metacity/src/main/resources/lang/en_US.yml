@@ -16,7 +16,7 @@ wallet-allowancenotset: "&cYou must confirm the approve request in your wallet b
 wallet-notlinked-self: "&cYou have not linked a wallet to your identity."
 wallet-notlinked-other: "&6%player% &chas not linked a wallet."
 
-hint-link: "&cType &6'/enj link' &cfor instructions on how to link your Enjin Wallet."
+hint-link: "&cType &6'/meta link' &cfor instructions on how to link your Enjin Wallet."
 
 command-help-desc: "Show list of commands with their usage."
 command-trade-invitesent: "&aTrade invite sent to &6%player%!"

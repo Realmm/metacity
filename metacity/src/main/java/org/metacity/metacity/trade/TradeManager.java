@@ -1,9 +1,5 @@
 package org.metacity.metacity.trade;
 
-import com.enjin.sdk.TrustedPlatformClient;
-import com.enjin.sdk.graphql.GraphQLResponse;
-import com.enjin.sdk.models.request.CreateRequest;
-import com.enjin.sdk.models.request.Transaction;
 import com.enjin.sdk.models.request.data.*;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -13,11 +9,8 @@ import org.bukkit.inventory.ItemStack;
 import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.enums.Trader;
 import org.metacity.metacity.events.MetaPlayerQuitEvent;
-import org.metacity.metacity.exceptions.GraphQLException;
-import org.metacity.metacity.exceptions.NetworkException;
 import org.metacity.metacity.exceptions.UnregisterTradeInviteException;
 import org.metacity.metacity.player.MetaPlayer;
-import org.metacity.metacity.util.StringUtils;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.Translation;
 
@@ -139,7 +132,7 @@ public class TradeManager implements Listener {
     }
 
     private void send(MetaPlayer inviter, MetaPlayer invitee, List<ItemStack> tokens) {
-        plugin.chain().send(inviter, invitee, tokens);
+        plugin.chain().sendTrade(inviter, invitee, tokens);
     }
 
     private void createTradeRequest(MetaPlayer inviter, MetaPlayer invitee, List<TokenValueData> playerOneTokens, List<TokenValueData> playerTwoTokens) {
@@ -185,13 +178,13 @@ public class TradeManager implements Listener {
     }
 
     @EventHandler
-    public void onEnjPlayerQuit(MetaPlayerQuitEvent event) {
+    public void on(MetaPlayerQuitEvent event) {
         MetaPlayer player = event.getPlayer();
 
         player.getSentTradeInvites().forEach(other -> other.getReceivedTradeInvites().remove(player));
         player.getReceivedTradeInvites().forEach(other -> other.getSentTradeInvites().remove(player));
 
-        player.getBukkitPlayer().closeInventory();
+        player.player().ifPresent(Player::closeInventory);
     }
 
 }

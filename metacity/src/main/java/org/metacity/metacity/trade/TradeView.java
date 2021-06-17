@@ -80,6 +80,7 @@ public class TradeView extends ChestMenu implements MetaTokenView {
     }
 
     private void init() {
+        if (!other.player().isPresent() || !viewer.player().isPresent()) return;
         allowPlayerInventoryInteractions(true);
         setCloseConsumer(this::closeMenuAction);
 
@@ -92,7 +93,7 @@ public class TradeView extends ChestMenu implements MetaTokenView {
             TradeView otherView = other.getActiveTradeView();
             Position position = Position.toPosition(this, slot);
             otherView.getComponent(position).ifPresent(c -> {
-                otherView.setItem(other.getBukkitPlayer(), c, position, newItem);
+                other.player().ifPresent(o -> otherView.setItem(o, c, position, newItem));
             });
 
             // Un-readies the trade for both parties
@@ -102,7 +103,9 @@ public class TradeView extends ChestMenu implements MetaTokenView {
 
         //  Create the status region for the viewing player
         viewerStatusComponent = new SimpleMenuComponent(new Dimension(4, 1));
-        viewerStatusComponent.setItem(Position.of(0, 0), getPlayerHead(viewer.getBukkitPlayer(), TargetPlayer.SELF));
+        viewer.player().ifPresent(p -> {
+            viewerStatusComponent.setItem(Position.of(0, 0), getPlayerHead(p, TargetPlayer.SELF));
+        });
 
         Position readyPosition = Position.of(1, 0);
         viewerStatusComponent.setItem(readyPosition, readyItem);
@@ -113,8 +116,10 @@ public class TradeView extends ChestMenu implements MetaTokenView {
                 p.updateInventory();
 
                 TradeView otherView = other.getActiveTradeView();
-                otherView.setItem(other.getBukkitPlayer(), otherView.otherStatusComponent, Position.of(3, 0), readyPane);
-                other.getBukkitPlayer().updateInventory();
+                other.player().ifPresent(o -> {
+                    otherView.setItem(o, otherView.otherStatusComponent, Position.of(3, 0), readyPane);
+                    o.updateInventory();
+                });
 
                 if (otherView.playerReady) {
                     List<ItemStack> viewerOffer = getOfferedItems();
@@ -144,8 +149,10 @@ public class TradeView extends ChestMenu implements MetaTokenView {
             p.updateInventory();
 
             TradeView otherView = other.getActiveTradeView();
-            otherView.setItem(other.getBukkitPlayer(), otherView.otherStatusComponent, Position.of(3, 0), unreadyPane);
-            other.getBukkitPlayer().updateInventory();
+            other.player().ifPresent(o -> {
+                otherView.setItem(o, otherView.otherStatusComponent, Position.of(3, 0), unreadyPane);
+                o.updateInventory();
+            });
         }, ClickType.LEFT, ClickType.RIGHT);
         viewerStatusComponent.setItem(Position.of(3, 0), unreadyPane);
 
@@ -154,7 +161,10 @@ public class TradeView extends ChestMenu implements MetaTokenView {
 
         // Create the status region for the other player
         otherStatusComponent = new SimpleMenuComponent(new Dimension(4, 1));
-        otherStatusComponent.setItem(Position.of(0, 0), getPlayerHead(other.getBukkitPlayer(), TargetPlayer.OTHER));
+        other.player().ifPresent(o -> {
+            otherStatusComponent.setItem(Position.of(0, 0), getPlayerHead(o, TargetPlayer.OTHER));
+        });
+
         otherStatusComponent.setItem(Position.of(3, 0), unreadyPane);
 
         addComponent(Position.of(0, 0), viewerItemsComponent);
@@ -170,81 +180,89 @@ public class TradeView extends ChestMenu implements MetaTokenView {
     }
 
     protected void unreadyAction() {
-        playerReady = false;
-        setItem(viewer.getBukkitPlayer(), viewerStatusComponent, Position.of(3, 0), unreadyPane);
+        viewer.player().ifPresent(v -> {
+            other.player().ifPresent(o -> {
+                playerReady = false;
+                setItem(v, viewerStatusComponent, Position.of(3, 0), unreadyPane);
 
-        TradeView otherView = other.getActiveTradeView();
-        otherView.setItem(other.getBukkitPlayer(), otherView.otherStatusComponent, Position.of(3, 0), unreadyPane);
+                TradeView otherView = other.getActiveTradeView();
+                otherView.setItem(o, otherView.otherStatusComponent, Position.of(3, 0), unreadyPane);
+            });
+        });
     }
 
     public List<ItemStack> getOfferedItems() {
-        InventoryView view = viewer.getBukkitPlayer().getOpenInventory();
         List<ItemStack> items = new ArrayList<>();
 
-        Dimension dimension = viewerItemsComponent.getDimension();
-        int rows = dimension.getHeight();
-        int cols = dimension.getWidth();
-        for (int y = 0; y < rows; y++) {
-            for (int x = 0; x < cols; x++) {
-                ItemStack item = view.getItem(x + (y * INV_WIDTH));
-                if (TokenUtils.isValidTokenItem(item))
-                    items.add(item);
+        viewer.player().ifPresent(v -> {
+            InventoryView view = v.getOpenInventory();
+            Dimension dimension = viewerItemsComponent.getDimension();
+            int rows = dimension.getHeight();
+            int cols = dimension.getWidth();
+            for (int y = 0; y < rows; y++) {
+                for (int x = 0; x < cols; x++) {
+                    ItemStack item = view.getItem(x + (y * INV_WIDTH));
+                    if (TokenUtils.isValidTokenItem(item))
+                        items.add(item);
+                }
             }
-        }
+        });
 
         return items;
     }
 
     public void open() {
-        open(this.viewer.getBukkitPlayer());
+        this.viewer.player().ifPresent(this::open);
     }
 
     @Override
     public void validateInventory() {
         TokenManager tokenManager = plugin.getTokenManager();
-        InventoryView view = viewer.getBukkitPlayer().getOpenInventory();
+        viewer.player().ifPresent(v -> {
+            InventoryView view = v.getOpenInventory();
 
-        Dimension dimension = viewerItemsComponent.getDimension();
-        int rows = dimension.getHeight();
-        int cols = dimension.getWidth();
-        for (int y = 0; y < rows; y++) {
-            for (int x = 0; x < cols; x++) {
-                int       slot = x + (y * INV_WIDTH);
-                ItemStack is   = view.getItem(slot);
-                if (!TokenUtils.hasTokenData(is)) {
-                    continue;
-                } else if (!TokenUtils.isValidTokenItem(is)) {
-                    view.setItem(slot, null);
-                    updateSlotWithHandler(slot, is, null);
-                    Logger.debug(String.format("Removed corrupted token from %s's trade window", viewer.getBukkitPlayer().getDisplayName()));
-                    continue;
-                }
-
-                String         fullId     = TokenUtils.createFullId(TokenUtils.getTokenID(is),
-                                                                    TokenUtils.getTokenIndex(is));
-                TokenModel tokenModel = tokenManager.getToken(fullId);
-                MutableBalance balance    = viewer.getTokenWallet().getBalance(fullId);
-                if (tokenModel == null
-                        || balance == null
-                        || balance.amountAvailableForWithdrawal() == 0) {
-                    view.setItem(slot, null);
-                    updateSlotWithHandler(slot, is, null);
-                } else if (tokenModel.getWalletViewState() != TokenWalletViewState.WITHDRAWABLE) {
-                    balance.deposit(is.getAmount());
-                    view.setItem(slot, null);
-                    updateSlotWithHandler(slot, is, null);
-                } else {
-                    if (balance.amountAvailableForWithdrawal() < is.getAmount()) {
-                        is.setAmount(balance.amountAvailableForWithdrawal());
-                        updateSlotWithHandler(slot, is, is);
+            Dimension dimension = viewerItemsComponent.getDimension();
+            int rows = dimension.getHeight();
+            int cols = dimension.getWidth();
+            for (int y = 0; y < rows; y++) {
+                for (int x = 0; x < cols; x++) {
+                    int       slot = x + (y * INV_WIDTH);
+                    ItemStack is   = view.getItem(slot);
+                    if (!TokenUtils.hasTokenData(is)) {
+                        continue;
+                    } else if (!TokenUtils.isValidTokenItem(is)) {
+                        view.setItem(slot, null);
+                        updateSlotWithHandler(slot, is, null);
+                        Logger.debug(String.format("Removed corrupted token from %s's trade window", v.getDisplayName()));
+                        continue;
                     }
 
-                    balance.withdraw(is.getAmount());
+                    String fullId = TokenUtils.createFullId(TokenUtils.getTokenID(is), TokenUtils.getTokenIndex(is));
+                    TokenModel tokenModel = tokenManager.getToken(fullId);
+                    MutableBalance balance = viewer.getTokenWallet().getBalance(fullId);
+                    if (tokenModel == null
+                            || balance == null
+                            || balance.amountAvailableForWithdrawal() == 0) {
+                        view.setItem(slot, null);
+                        updateSlotWithHandler(slot, is, null);
+                    } else if (tokenModel.getWalletViewState() != TokenWalletViewState.WITHDRAWABLE) {
+                        balance.deposit(is.getAmount());
+                        view.setItem(slot, null);
+                        updateSlotWithHandler(slot, is, null);
+                    } else {
+                        if (balance.amountAvailableForWithdrawal() < is.getAmount()) {
+                            is.setAmount(balance.amountAvailableForWithdrawal());
+                            updateSlotWithHandler(slot, is, is);
+                        }
 
-                    updateTokenInInventory(tokenModel, balance, is, slot);
+                        balance.withdraw(is.getAmount());
+
+                        updateTokenInInventory(tokenModel, balance, is, slot);
+                    }
                 }
             }
-        }
+        });
+
     }
 
     private void updateTokenInInventory(TokenModel tokenModel,
@@ -276,8 +294,10 @@ public class TradeView extends ChestMenu implements MetaTokenView {
     }
 
     private void updateSlotWithHandler(int slot, ItemStack oldItem, ItemStack newItem) {
-        Optional<SlotUpdateHandler> slotUpdateHandler = viewerItemsComponent.getSlotUpdateHandler();
-        slotUpdateHandler.ifPresent(handler -> handler.handle(viewer.getBukkitPlayer(), slot, oldItem, newItem));
+        viewer.player().ifPresent(p -> {
+            Optional<SlotUpdateHandler> slotUpdateHandler = viewerItemsComponent.getSlotUpdateHandler();
+            slotUpdateHandler.ifPresent(handler -> handler.handle(p, slot, oldItem, newItem));
+        });
     }
 
     private ItemStack getPlayerHead(Player player, TargetPlayer target) {
@@ -339,50 +359,92 @@ public class TradeView extends ChestMenu implements MetaTokenView {
     @Override
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (viewer.getBukkitPlayer() != event.getWhoClicked())
-            return;
+        viewer.player().ifPresent(p -> {
+            if (p != event.getWhoClicked()) return;
 
-        if (event.getClickedInventory() instanceof PlayerInventory) {
-            ItemStack is = event.getCurrentItem();
-            if (is == null || is.getType() == Material.AIR) {
-                return;
-            } else if (!TokenUtils.isValidTokenItem(is)) {
-                event.setResult(Event.Result.DENY);
-                return;
+            if (event.getClickedInventory() instanceof PlayerInventory) {
+                ItemStack is = event.getCurrentItem();
+                if (is == null || is.getType() == Material.AIR) {
+                    return;
+                } else if (!TokenUtils.isValidTokenItem(is)) {
+                    event.setResult(Event.Result.DENY);
+                    return;
+                }
+
+                if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY)
+                    moveToTradeInventory(event);
+            } else {
+                super.onInventoryClick(event);
+
+                if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY)
+                    moveToPlayerInventory(event);
             }
-
-            if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY)
-                moveToTradeInventory(event);
-        } else {
-            super.onInventoryClick(event);
-
-            if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY)
-                moveToPlayerInventory(event);
-        }
+        });
     }
 
     private void moveToTradeInventory(InventoryClickEvent event) {
         event.setCancelled(true);
 
-        InventoryView view = viewer.getBukkitPlayer().getOpenInventory();
-        TokenManager tokenManager = plugin.getTokenManager();
-        ItemStack  currItem  = event.getCurrentItem();
-        TokenModel currModel = tokenManager.getToken(currItem);
-        if (currItem == null || currModel == null)
-            return;
+        viewer.player().ifPresent(p -> {
+            InventoryView view = p.getOpenInventory();
+            TokenManager tokenManager = plugin.getTokenManager();
+            ItemStack  currItem  = event.getCurrentItem();
+            TokenModel currModel = tokenManager.getToken(currItem);
+            if (currItem == null || currModel == null)
+                return;
 
-        Dimension dimension = viewerItemsComponent.getDimension();
-        int rows = dimension.getHeight();
-        int cols = dimension.getWidth();
-        for (int y = 0; y < rows; y++) {
-            for (int x = 0; x < cols; x++) {
-                int       slot      = x + (y * INV_WIDTH);
-                ItemStack otherItem = view.getItem(slot);
+            Dimension dimension = viewerItemsComponent.getDimension();
+            int rows = dimension.getHeight();
+            int cols = dimension.getWidth();
+            for (int y = 0; y < rows; y++) {
+                for (int x = 0; x < cols; x++) {
+                    int       slot      = x + (y * INV_WIDTH);
+                    ItemStack otherItem = view.getItem(slot);
+                    if (otherItem == null || otherItem.getType() == Material.AIR) {
+                        // Transfers the whole stack
+                        view.setItem(slot, event.getCurrentItem());
+                        updateSlotWithHandler(slot, otherItem, event.getCurrentItem());
+                        Objects.requireNonNull(event.getClickedInventory()).setItem(event.getSlot(), null);
+                        return;
+                    }
+
+                    TokenModel otherModel = tokenManager.getToken(otherItem);
+                    if (otherModel == currModel) {
+                        // Combines what is possible with the other stack
+                        int amount = Math.min(otherItem.getMaxStackSize(), otherItem.getAmount() + currItem.getAmount());
+                        currItem.setAmount(currItem.getAmount() - (amount - otherItem.getAmount()));
+                        otherItem.setAmount(amount);
+
+                        updateSlotWithHandler(slot, otherItem, otherItem);
+
+                        if (currItem.getAmount() <= 0) {
+                            Objects.requireNonNull(event.getClickedInventory()).setItem(event.getSlot(), null);
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    private void moveToPlayerInventory(InventoryClickEvent event) {
+        event.setCancelled(true);
+
+        viewer.player().ifPresent(p -> {
+            TokenManager tokenManager = plugin.getTokenManager();
+            PlayerInventory playerInventory = p.getInventory();
+            ItemStack  currItem  = event.getCurrentItem();
+            TokenModel currModel = tokenManager.getToken(currItem);
+            if (currItem == null || currModel == null)
+                return;
+
+            for (int i = 0; i < playerInventory.getStorageContents().length; i++) {
+                ItemStack otherItem = playerInventory.getItem(i);
                 if (otherItem == null || otherItem.getType() == Material.AIR) {
                     // Transfers the whole stack
-                    view.setItem(slot, event.getCurrentItem());
-                    updateSlotWithHandler(slot, otherItem, event.getCurrentItem());
                     Objects.requireNonNull(event.getClickedInventory()).setItem(event.getSlot(), null);
+                    updateSlotWithHandler(event.getSlot(), currItem, null);
+                    playerInventory.setItem(i, currItem);
                     return;
                 }
 
@@ -393,53 +455,16 @@ public class TradeView extends ChestMenu implements MetaTokenView {
                     currItem.setAmount(currItem.getAmount() - (amount - otherItem.getAmount()));
                     otherItem.setAmount(amount);
 
-                    updateSlotWithHandler(slot, otherItem, otherItem);
-
-                    if (currItem.getAmount() <= 0) {
+                    if (currItem.getAmount() > 0) {
+                        updateSlotWithHandler(event.getSlot(), currItem, currItem);
+                    } else {
                         Objects.requireNonNull(event.getClickedInventory()).setItem(event.getSlot(), null);
+                        updateSlotWithHandler(event.getSlot(), currItem, null);
                         return;
                     }
                 }
             }
-        }
-    }
-
-    private void moveToPlayerInventory(InventoryClickEvent event) {
-        event.setCancelled(true);
-
-        TokenManager tokenManager = plugin.getTokenManager();
-        PlayerInventory playerInventory = viewer.getBukkitPlayer().getInventory();
-        ItemStack  currItem  = event.getCurrentItem();
-        TokenModel currModel = tokenManager.getToken(currItem);
-        if (currItem == null || currModel == null)
-            return;
-
-        for (int i = 0; i < playerInventory.getStorageContents().length; i++) {
-            ItemStack otherItem = playerInventory.getItem(i);
-            if (otherItem == null || otherItem.getType() == Material.AIR) {
-                // Transfers the whole stack
-                Objects.requireNonNull(event.getClickedInventory()).setItem(event.getSlot(), null);
-                updateSlotWithHandler(event.getSlot(), currItem, null);
-                playerInventory.setItem(i, currItem);
-                return;
-            }
-
-            TokenModel otherModel = tokenManager.getToken(otherItem);
-            if (otherModel == currModel) {
-                // Combines what is possible with the other stack
-                int amount = Math.min(otherItem.getMaxStackSize(), otherItem.getAmount() + currItem.getAmount());
-                currItem.setAmount(currItem.getAmount() - (amount - otherItem.getAmount()));
-                otherItem.setAmount(amount);
-
-                if (currItem.getAmount() > 0) {
-                    updateSlotWithHandler(event.getSlot(), currItem, currItem);
-                } else {
-                    Objects.requireNonNull(event.getClickedInventory()).setItem(event.getSlot(), null);
-                    updateSlotWithHandler(event.getSlot(), currItem, null);
-                    return;
-                }
-            }
-        }
+        });
     }
 
     @Override
@@ -449,59 +474,64 @@ public class TradeView extends ChestMenu implements MetaTokenView {
     }
 
     private void closeMenuAction(Player player, AbstractMenu menu) {
-        if (player != viewer.getBukkitPlayer())
-            return;
+        viewer.player().ifPresent(p -> {
+            if (player != p) return;
+            other.player().ifPresent(o -> {
+                viewer.setActiveTradeView(null);
+                TradeView otherTradeView = other.getActiveTradeView();
+                if (otherTradeView != null) {
+                    otherTradeView.removePlayer(o);
+                    otherTradeView.destroy();
+                }
 
-        viewer.setActiveTradeView(null);
+                if (!tradeApproved && otherTradeView == null)
+                    informViewerOfCancellation();
 
-        TradeView otherTradeView = other.getActiveTradeView();
-        if (otherTradeView != null) {
-            otherTradeView.removePlayer(other.getBukkitPlayer());
-            otherTradeView.destroy();
-        }
-
-        if (!tradeApproved && otherTradeView == null)
-            informViewerOfCancellation();
-
-        returnItems(player);
-        destroy();
+                returnItems(player);
+                destroy();
+            });
+        });
     }
 
     private void returnItems(Player player) {
-        InventoryView view = viewer.getBukkitPlayer().getOpenInventory();
-        Inventory playerInventory = player.getInventory();
-        List<ItemStack> items = new ArrayList<>();
+        viewer.player().ifPresent(p -> {
+            InventoryView view = p.getOpenInventory();
+            Inventory playerInventory = player.getInventory();
+            List<ItemStack> items = new ArrayList<>();
 
-        Dimension dimension = viewerItemsComponent.getDimension();
-        int rows = dimension.getHeight();
-        int cols = dimension.getWidth();
-        for (int y = 0; y < rows; y++) {
-            for (int x = 0; x < cols; x++) {
-                ItemStack is = view.getItem(x + (y * INV_WIDTH));
-                if (TokenUtils.hasTokenData(is))
-                    items.add(is);
+            Dimension dimension = viewerItemsComponent.getDimension();
+            int rows = dimension.getHeight();
+            int cols = dimension.getWidth();
+            for (int y = 0; y < rows; y++) {
+                for (int x = 0; x < cols; x++) {
+                    ItemStack is = view.getItem(x + (y * INV_WIDTH));
+                    if (TokenUtils.hasTokenData(is))
+                        items.add(is);
+                }
             }
-        }
 
-        Map<Integer, ItemStack> leftOver = playerInventory.addItem(items.toArray(new ItemStack[0]));
-        if (leftOver.size() > 0) {
-            TokenWallet tokenWallet = viewer.getTokenWallet();
-            for (ItemStack is : leftOver.values()) {
-                MutableBalance balance = tokenWallet.getBalance(TokenUtils.getTokenID(is),
-                                                                TokenUtils.getTokenIndex(is));
-                if (balance != null)
-                    balance.deposit(is.getAmount());
+            Map<Integer, ItemStack> leftOver = playerInventory.addItem(items.toArray(new ItemStack[0]));
+            if (leftOver.size() > 0) {
+                TokenWallet tokenWallet = viewer.getTokenWallet();
+                for (ItemStack is : leftOver.values()) {
+                    MutableBalance balance = tokenWallet.getBalance(TokenUtils.getTokenID(is),
+                            TokenUtils.getTokenIndex(is));
+                    if (balance != null)
+                        balance.deposit(is.getAmount());
+                }
             }
-        }
+        });
     }
 
     private void informViewerOfCancellation() {
-        TextComponent component = Component.text().color(NamedTextColor.GRAY)
-                .append(Component.text(other.getBukkitPlayer().getName()).color(NamedTextColor.GOLD))
-                .append(Component.text(" has cancelled the trade."))
-                .build();
-        viewer.getBukkitPlayer().sendMessage(component.content());
+        other.player().ifPresent(o -> {
+            TextComponent component = Component.text().color(NamedTextColor.GRAY)
+                    .append(Component.text(o.getName()).color(NamedTextColor.GOLD))
+                    .append(Component.text(" has cancelled the trade."))
+                    .build();
+            viewer.player().ifPresent(v -> v.sendMessage(component.content()));
 //        viewer.getBukkitPlayer().spigot().sendMessage(component.content());
 //        MessageUtils.sendComponent(viewer.getBukkitPlayer(), component);
+        });
     }
 }
