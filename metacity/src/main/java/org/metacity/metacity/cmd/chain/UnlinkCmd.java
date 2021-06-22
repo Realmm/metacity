@@ -1,4 +1,4 @@
-package org.metacity.metacity.cmd.enj.player;
+package org.metacity.metacity.cmd.chain;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -13,12 +13,11 @@ import org.metacity.metacity.util.server.Translation;
 import java.util.Objects;
 import java.util.Optional;
 
-public class UnlinkCmd extends SubCommand<Player> {
+public class UnlinkCmd extends Command<Player> {
 
     public UnlinkCmd() {
-        super(Player.class);
+        super(Player.class, "unlink");
         addPermission(Permission.CMD_UNLINK.node());
-        addCondition((p, w) -> w.validateNode(1, s -> s.equalsIgnoreCase("unlink")));
         setExecution((p, w) -> {
             Optional<MetaPlayer> om = MetaCity.getInstance().getPlayerManager().getPlayer(p);
             if (!om.isPresent()) {

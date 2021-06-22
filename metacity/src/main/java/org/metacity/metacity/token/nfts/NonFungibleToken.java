@@ -1,8 +1,10 @@
 package org.metacity.metacity.token.nfts;
 
 import lombok.NonNull;
+import org.bukkit.inventory.ItemStack;
 import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.token.TokenPermission;
+import org.metacity.metacity.token.TokenType;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.wallet.TokenWalletViewState;
 
@@ -19,15 +21,15 @@ public abstract class NonFungibleToken {
 
     private final List<TokenModel> models = new ArrayList<>();
 
-    public NonFungibleToken(@NonNull String id, int amount, @NonNull String alternateId, @NonNull String nbt, @NonNull String metadataURI) {
-        for (int i = 1; i < amount; i++) {
-            TokenModel model = new TokenModel(id,
+    public NonFungibleToken(TokenType type) {
+        for (int i = 0; i < type.getMaxAmount(); i++) {
+            TokenModel model = new TokenModel(type.getId(),
                     TokenUtils.formatIndex(String.valueOf(i)),
                     true,
-                    alternateId,
-                    nbt,
+                    type.getAlternateId(),
+                    type.data(),
                     null,
-                    metadataURI,
+                    type.getMetadataURI(),
                     TokenWalletViewState.WITHDRAWABLE);
             models.add(model);
         }

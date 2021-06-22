@@ -1,26 +1,25 @@
-package org.metacity.metacity.cmd.enj.wallet.send;
+package org.metacity.metacity.cmd.chain.wallet.send;
 
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.metacity.commands.Command;
 import org.metacity.commands.SubCommand;
 import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.cmd.MetaCommandWrapper;
 import org.metacity.metacity.enums.Permission;
-import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.Translation;
 import org.metacity.metacity.wallet.MutableBalance;
 
-public class SendCmd extends SubCommand<Player> implements MetaCommandWrapper {
+public class SendCmd extends Command<Player> implements MetaCommandWrapper {
 
     public SendCmd() {
-        super(Player.class);
+        super(Player.class, "send");
         addPermission(Permission.CMD_SEND.node());
-        addCondition((p, w) -> w.validateNode(1, s -> s.equalsIgnoreCase("send")));
-        addCondition((p, w) -> w.hasNode(2));
+        addCondition((p, w) -> w.hasNode(1));
         setExecution((p, w) -> {
-            String target = w.node(2);
+            String target = w.node(1);
 
             getValidSenderMetaPlayer(p).ifPresent(m -> {
                 getValidTargetPlayer(p, target).ifPresent(t -> {

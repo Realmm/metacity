@@ -6,6 +6,7 @@ import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.craftbukkit.v1_17_R1.CraftServer;
 import org.metacity.core.Core;
 import org.metacity.util.CC;
+import org.metacity.util.Logger;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class CommandNode<T extends CommandSender> {
@@ -101,15 +103,17 @@ public class CommandNode<T extends CommandSender> {
         }
 
         Predicate<SubCommand<CommandSender>> pred = sub ->
-                sub.execution() != null &&
-                        sub.conditions().filter(c ->
-                                sub.allowedSender().isAssignableFrom(sender.getClass()))
-                                .anyMatch(c -> c.validate(sender, normalWrapper));
+                sub.execution() != null && sub.allowedSender().isAssignableFrom(sender.getClass()) &&
+                        sub.conditions().allMatch(c -> c.validate(sender, normalWrapper));
 
-        if (co.subCommands().stream().filter(pred).count() > 1) {
+        List<SubCommand<CommandSender>> list = co.subCommands().stream().filter(pred).collect(Collectors.toList());
+        if (list.size() > 1) {
+            list.forEach(sub -> {
+                Logger.debug("Check: " + sub.getClass().getSimpleName());
+            });
             throw new IllegalStateException("Unable to parse SubCommand, " +
-                    "duplicate valid subcommands for input, found \'" + co.subCommands().stream().filter(pred).count() +
-                    "\' valid sub commands, should be 1");
+                    "duplicate valid subcommands for input, found \'" + list.size() +
+                    "\' valid sub commands, should be 1.");
         }
         SubCommand<CommandSender> sub = co.subCommands().stream().filter(pred).findFirst().orElse(null);
         if (sub == null) {

@@ -1,4 +1,4 @@
-package org.metacity.metacity.cmd.enj.wallet.trade;
+package org.metacity.metacity.cmd.chain.wallet.trade;
 
 import lombok.NonNull;
 import net.kyori.adventure.text.Component;
@@ -15,7 +15,6 @@ import org.metacity.metacity.enums.Permission;
 import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.util.server.Translation;
 
-import javax.annotation.Nonnull;
 import java.math.BigInteger;
 import java.util.Optional;
 

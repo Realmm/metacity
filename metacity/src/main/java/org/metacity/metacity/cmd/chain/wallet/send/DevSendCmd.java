@@ -1,29 +1,26 @@
-package org.metacity.metacity.cmd.enj.wallet.send;
+package org.metacity.metacity.cmd.chain.wallet.send;
 
-import org.bukkit.Bukkit;
 import org.bukkit.command.ConsoleCommandSender;
-import org.bukkit.entity.Player;
+import org.metacity.commands.Command;
 import org.metacity.commands.SubCommand;
 import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.cmd.MetaCommandWrapper;
-import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.util.PlayerUtils;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.Translation;
 
-public class DevSendCmd extends SubCommand<ConsoleCommandSender> implements MetaCommandWrapper {
+public class DevSendCmd extends Command<ConsoleCommandSender> implements MetaCommandWrapper {
 
     private static final int ETH_ADDRESS_LENGTH = 42;
     private static final String ETH_ADDRESS_PREFIX = "0x";
 
     public DevSendCmd() {
-        super(ConsoleCommandSender.class);
-        addCondition((sender, w) -> w.validateNode(1, s -> s.equalsIgnoreCase("devsend")));
-        addCondition((sender, w) -> w.hasNode(3));
+        super(ConsoleCommandSender.class, "devsend");
+        addCondition((sender, w) -> w.hasNode(2));
         setExecution((sender, w) -> {
-            String target = w.node(2);
-            String id = w.node(3);
+            String target = w.node(1);
+            String id = w.node(2);
 
             // Process target address
             String[] targetAddr = {""};
@@ -53,7 +50,7 @@ public class DevSendCmd extends SubCommand<ConsoleCommandSender> implements Meta
 
             if (tokenModel.isNonfungible()) { // Non-fungible token
                 try {
-                    index = TokenUtils.parseIndex(w.node(4));
+                    index = TokenUtils.parseIndex(w.node(3));
                 } catch (IllegalArgumentException e) {
                     Translation.COMMAND_TOKEN_INVALIDFULLID.send(sender);
                     return;
@@ -63,7 +60,7 @@ public class DevSendCmd extends SubCommand<ConsoleCommandSender> implements Meta
                 }
             } else { // Fungible token
                 try {
-                    amount = Integer.valueOf(w.node(4));
+                    amount = Integer.valueOf(w.node(3));
                     if (amount == null || amount <= 0)
                         throw new IllegalArgumentException("Invalid amount to send");
                 } catch (IllegalArgumentException e) {

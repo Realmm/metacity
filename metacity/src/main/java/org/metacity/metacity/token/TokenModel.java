@@ -44,7 +44,7 @@ public class TokenModel {
 
     @Getter
     private transient boolean loaded;
-//    private transient NBTContainer nbtContainer;
+    private transient NBTContainer nbtContainer;
     private transient NBTItem nbtItem;
     @Getter(onMethod_ = {@Nullable, @Synchronized("uriLock")})
     @Setter(value = AccessLevel.PROTECTED, onMethod_ = {@Synchronized("uriLock")})
@@ -183,14 +183,9 @@ public class TokenModel {
 
         if (nbt.isEmpty()) return;
 
-        System.out.println("NBT: " + nbt);
-        System.out.println("NBTID: " + id);
-        System.out.println("NBTINDEX: " + index);
-        System.out.println("NBTNONFUNG: " + nonfungible);
-
-//        nbtContainer = new NBTContainer(nbt);
-        ItemStack stone = new ItemStack(Material.STONE);
-        nbtItem = new NBTItem(stone);
+        nbtContainer = new NBTContainer(nbt);
+        ItemStack stack = NBTItem.convertNBTtoItem(nbtContainer);
+        nbtItem = new NBTItem(stack);
         nbtItem.addCompound(nbt);
         nbtItem.setString(NBT_ID, id);
         nbtItem.setString(NBT_INDEX, index);
@@ -330,8 +325,7 @@ public class TokenModel {
 
         ItemStack is;
         if (raw) {
-//            new NBTItem(NBTItem.convertNBTtoItem(nbtContainer));
-            NBTItem nbtItem = new NBTItem(this.nbtItem.getItemStack(nbt));
+            NBTItem nbtItem = new NBTItem(NBTItem.convertNBTtoItem(nbtContainer));
             nbtItem.removeKey(NBT_ID);
             nbtItem.removeKey(NBT_INDEX);
             nbtItem.removeKey(NBT_NONFUNGIBLE);

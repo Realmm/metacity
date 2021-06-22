@@ -10,6 +10,7 @@ import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.util.TokenUtils;
 import org.metacity.metacity.util.server.Translation;
 import org.metacity.util.CC;
+import org.metacity.util.Util;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,7 +39,7 @@ public class ListCmd extends SubCommand<Player> {
         for (TokenModel token : tokens) {
             if (token.isNonFungibleInstance())
                 continue;
-            sender.sendMessage(String.format("&a%d: &6%s &7(&6%s&7)", count++, token.getId(), token.getAlternateId()));
+            sender.sendMessage(Util.color(String.format("&a%d: &6%s &7(&6%s&7)", count++, token.getId(), token.getAlternateId())));
         }
     }
 
@@ -67,10 +68,10 @@ public class ListCmd extends SubCommand<Player> {
         int count = 0;
         for (String fullId : instances) {
             TokenModel instance = tokenManager.getToken(fullId);
-            sender.sendMessage(String.format("&a%d: &6%s #%d",
+            sender.sendMessage(Util.color(String.format("&a%d: &6%s #%d",
                     count++,
                     instance.getId(),
-                    TokenUtils.convertIndexToLong(instance.getIndex())));
+                    TokenUtils.convertIndexToLong(instance.getIndex()))));
         }
     }
 

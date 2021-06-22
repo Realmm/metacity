@@ -1,10 +1,19 @@
 package org.metacity.metacity;
 
 import org.bukkit.Bukkit;
+import org.metacity.commands.CommandNode;
 import org.metacity.core.CorePlugin;
+import org.metacity.metacity.cmd.chain.LinkCmd;
+import org.metacity.metacity.cmd.chain.UnlinkCmd;
+import org.metacity.metacity.cmd.chain.wallet.WalletCmd;
+import org.metacity.metacity.cmd.chain.wallet.BalanceCmd;
+import org.metacity.metacity.cmd.chain.wallet.send.DevSendCmd;
+import org.metacity.metacity.cmd.chain.wallet.send.SendCmd;
+import org.metacity.metacity.cmd.chain.wallet.trade.TradeCmd;
 import org.metacity.metacity.cmd.enj.MetaCmd;
 import org.metacity.metacity.listeners.QrItemListener;
 import org.metacity.metacity.listeners.TokenItemListener;
+import org.metacity.metacity.mmo.MMOManager;
 import org.metacity.metacity.player.PlayerManager;
 import org.metacity.metacity.storage.ChainDatabase;
 import org.metacity.metacity.token.TokenManager;
@@ -22,6 +31,7 @@ public class MetaCity extends CorePlugin {
     private Generator generator;
 
     private TokenManager tokenManager;
+    private MMOManager mmoManager;
     private ChainDatabase database;
     private Chain chain;
 
@@ -37,6 +47,8 @@ public class MetaCity extends CorePlugin {
         setUp();
 
         playerManager = new PlayerManager();
+        tradeManager = new TradeManager();
+        mmoManager = new MMOManager();
         generator = new Generator("metacity");
 
         registerCommands();
@@ -51,12 +63,25 @@ public class MetaCity extends CorePlugin {
     }
 
     private void registerCommands() {
-
+        Stream.of(
+                new MetaCmd(),
+                new UnlinkCmd(),
+                new LinkCmd(),
+                new WalletCmd(),
+                new BalanceCmd(),
+                new TradeCmd(),
+                new SendCmd(),
+                new DevSendCmd()
+        ).forEach(c -> c.register());
     }
 
     private void registerListeners() {
         Stream.of(
-                playerManager
+                playerManager,
+                tradeManager,
+                mmoManager,
+                new TokenItemListener(),
+                new QrItemListener()
         ).forEach(l -> Bukkit.getPluginManager().registerEvents(l, this));
     }
 
@@ -82,29 +107,11 @@ public class MetaCity extends CorePlugin {
             chain = new Chain();
 
             // Init Managers
-            playerManager = new PlayerManager();
             tokenManager = new TokenManager();
-            tradeManager = new TradeManager();
-            tokenManager.loadTokens();
-            tokenManager.loadLocalTokens();
 
-
-            // Register Listeners
-            Bukkit.getPluginManager().registerEvents(playerManager, plugin);
-            Bukkit.getPluginManager().registerEvents(tradeManager, plugin);
-            Bukkit.getPluginManager().registerEvents(new TokenItemListener(), plugin);
-            Bukkit.getPluginManager().registerEvents(new QrItemListener(), plugin);
-
-            // Register Commands
-//            PluginCommand pluginCommand = Objects.requireNonNull(plugin.getCommand("meta"),
-//                    "Missing \"meta\" command definition in plugin.yml");
-//            CmdMeta cmdMeta = new CmdMeta();
-//            pluginCommand.setExecutor(cmdMeta);
-            new MetaCmd().register();
-
-//            Command.builder(Player.class, "meta")
-//                    .addSubCommand(b -> b.build())
-//                    .build().register();
+//            tokenManager.loadTokens(); //Load from database initially
+            tokenManager.loadLocalTokens(); //Tries to save implemented tokens in database, updating if necessary
+            tokenManager.loadTokens(); //Pull current, potentially updated token data from database
 
             new TradeUpdateTask().runTaskTimerAsynchronously(plugin, 20, 20);
         } catch (Exception e) {

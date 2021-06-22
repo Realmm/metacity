@@ -1,11 +1,10 @@
-package org.metacity.metacity.cmd.enj.wallet.trade;
+package org.metacity.metacity.cmd.chain.wallet.trade;
 
 import org.bukkit.entity.Player;
 import org.metacity.commands.SubCommand;
 import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.cmd.MetaCommandWrapper;
 import org.metacity.metacity.enums.Permission;
-import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.util.server.Translation;
 
 public class AcceptCmd extends SubCommand<Player> implements MetaCommandWrapper {

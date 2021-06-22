@@ -104,7 +104,12 @@ public class TokenManager {
     public void loadLocalTokens() {
         Stream.of(
                 new TestSword()
-        ).forEach(token -> token.models().forEach(this::saveToken));
+        ).forEach(token -> token.models().forEach(m -> {
+            if (saveToken(m) != TOKEN_CREATE_SUCCESS) {
+                updateTokenConfDatabase(m);
+                saveToken(m);
+            }
+        }));
     }
 
     public void loadTokens() {

@@ -5,6 +5,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import javax.annotation.Nullable;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -13,7 +14,7 @@ import java.util.UUID;
  */
 public class QuestionablePlayer {
 
-    private UUID u;
+    private @Nullable UUID u;
 
     public QuestionablePlayer(UUID u) {
         this(Bukkit.getOfflinePlayer(u));
@@ -24,8 +25,7 @@ public class QuestionablePlayer {
     }
 
     public QuestionablePlayer(OfflinePlayer p) {
-        if (p == null || (!p.isOnline() && !p.hasPlayedBefore()))
-            throw new IllegalStateException("Unable to instantiate QuestionablePlayer for null player instance");
+        if (p == null || (!p.isOnline() && !p.hasPlayedBefore())) return;
         this.u = p.getUniqueId();
     }
 

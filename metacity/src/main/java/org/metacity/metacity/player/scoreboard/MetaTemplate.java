@@ -36,7 +36,7 @@ public class MetaTemplate extends MetaScoreboard {
         if (!linked(p)) return CC.RED + "Not linked";
         MetaPlayer meta = meta(p).orElse(null);
         if (meta == null) return null;
-        return CC.GOLD + "ENJ: " + CC.GRAY + meta.getEnjBalance().doubleValue();
+        return CC.GOLD + "Level: " + CC.GRAY + meta.getLevel();
     }
 
     @Nullable

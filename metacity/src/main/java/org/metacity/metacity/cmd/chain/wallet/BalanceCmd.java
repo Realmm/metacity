@@ -1,12 +1,11 @@
-package org.metacity.metacity.cmd.enj.wallet;
+package org.metacity.metacity.cmd.chain.wallet;
 
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.metacity.commands.Command;
 import org.metacity.commands.SubCommand;
 import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.cmd.MetaCommandWrapper;
 import org.metacity.metacity.enums.Permission;
-import org.metacity.metacity.player.MetaPlayer;
 import org.metacity.metacity.token.TokenManager;
 import org.metacity.metacity.token.TokenModel;
 import org.metacity.metacity.util.TokenUtils;
@@ -15,13 +14,11 @@ import org.metacity.metacity.wallet.MutableBalance;
 
 import java.math.BigDecimal;
 
-public class BalanceCmd extends SubCommand<Player> implements MetaCommandWrapper {
+public class BalanceCmd extends Command<Player> implements MetaCommandWrapper {
 
     public BalanceCmd() {
-        super(Player.class);
+        super(Player.class, "balance");
         addPermission(Permission.CMD_BALANCE.node());
-        addCondition((p, w) -> w.validateNode(1, s -> s.equalsIgnoreCase("bal") ||
-                s.equalsIgnoreCase("balance")));
         setExecution((p, w) -> {
             getValidSenderMetaPlayer(p).ifPresent(m -> {
                 BigDecimal ethBalance = m.getEthBalance() == null

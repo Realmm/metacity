@@ -276,7 +276,6 @@ public class ChainDatabase {
             try (ResultSet rs = getAllTokens.executeQuery()) {
                 while (rs.next()) {
                     TokenModel tokenModel = new TokenModel(rs);
-                    System.out.println("db: " + tokenModel.getId() + " " + tokenModel.getIndex());
 
                     List<TokenPermission> permissions = getPermissions(tokenModel.getId(),
                                                                        tokenModel.getIndex());

@@ -23,6 +23,7 @@ import org.metacity.metacity.Chain;
 import org.metacity.metacity.MetaCity;
 import org.metacity.metacity.exceptions.GraphQLException;
 import org.metacity.metacity.exceptions.NetworkException;
+import org.metacity.metacity.mmo.MMOPlayer;
 import org.metacity.metacity.player.scoreboard.MetaTemplate;
 import org.metacity.metacity.token.TokenManager;
 import org.metacity.metacity.token.TokenModel;
@@ -45,7 +46,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.*;
 
-public class MetaPlayer {
+public class MetaPlayer extends MMOPlayer {
 
     private final UberBoard uberBoard;
 
@@ -86,6 +87,7 @@ public class MetaPlayer {
     private final PlayerListener listener;
 
     public MetaPlayer(OfflinePlayer p) {
+        super(p);
         this.uuid = p.getUniqueId();
         this.questionablePlayer = new QuestionablePlayer(uuid);
         this.tokenWallet = new TokenWallet();
